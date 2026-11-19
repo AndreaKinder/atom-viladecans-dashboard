@@ -1,0 +1,17 @@
+{
+  "name": "atom-viladecans-dashboard",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "node ./dist/server/entry.mjs",
+    "test": "node --test tests/decision-engine.test.js"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.1.13",
+    "astro": "^7.4.12",
+    "fs": "^0.0.1-security"
+  }
+}

@@ -1,0 +1,218 @@
+[
+  {
+    "material_id": "M01",
+    "material": "madera_laminada",
+    "familia": "estructura",
+    "densidad_kg_m3": 510,
+    "conductividad_o_u_referencia": 0.11,
+    "precio_indicativo_eur_unidad": 430,
+    "indice_reutilizacion": 0.75
+  },
+  {
+    "material_id": "M02",
+    "material": "madera_contralam",
+    "familia": "estructura",
+    "densidad_kg_m3": 540,
+    "conductividad_o_u_referencia": 0.12,
+    "precio_indicativo_eur_unidad": 470,
+    "indice_reutilizacion": 0.74
+  },
+  {
+    "material_id": "M03",
+    "material": "acero_reciclado",
+    "familia": "estructura",
+    "densidad_kg_m3": 790,
+    "conductividad_o_u_referencia": 0.29,
+    "precio_indicativo_eur_unidad": 680,
+    "indice_reutilizacion": 0.87
+  },
+  {
+    "material_id": "M04",
+    "material": "aluminio_reciclado",
+    "familia": "estructura",
+    "densidad_kg_m3": 500,
+    "conductividad_o_u_referencia": 0.22,
+    "precio_indicativo_eur_unidad": 1120,
+    "indice_reutilizacion": 0.91
+  },
+  {
+    "material_id": "M05",
+    "material": "celulosa",
+    "familia": "aislamiento",
+    "densidad_kg_m3": 45,
+    "conductividad_o_u_referencia": 0.04,
+    "precio_indicativo_eur_unidad": 22,
+    "indice_reutilizacion": 0.82
+  },
+  {
+    "material_id": "M06",
+    "material": "fibra_madera",
+    "familia": "aislamiento",
+    "densidad_kg_m3": 65,
+    "conductividad_o_u_referencia": 0.043,
+    "precio_indicativo_eur_unidad": 29,
+    "indice_reutilizacion": 0.89
+  },
+  {
+    "material_id": "M07",
+    "material": "lana_mineral",
+    "familia": "aislamiento",
+    "densidad_kg_m3": 70,
+    "conductividad_o_u_referencia": 0.036,
+    "precio_indicativo_eur_unidad": 38,
+    "indice_reutilizacion": 0.55
+  },
+  {
+    "material_id": "M08",
+    "material": "corcho",
+    "familia": "aislamiento",
+    "densidad_kg_m3": 115,
+    "conductividad_o_u_referencia": 0.04,
+    "precio_indicativo_eur_unidad": 53,
+    "indice_reutilizacion": 0.92
+  },
+  {
+    "material_id": "M09",
+    "material": "fibra_canamo",
+    "familia": "aislamiento",
+    "densidad_kg_m3": 48,
+    "conductividad_o_u_referencia": 0.042,
+    "precio_indicativo_eur_unidad": 41,
+    "indice_reutilizacion": 0.86
+  },
+  {
+    "material_id": "M10",
+    "material": "panel_fibrocemento",
+    "familia": "envolvente",
+    "densidad_kg_m3": 1350,
+    "conductividad_o_u_referencia": 0.3,
+    "precio_indicativo_eur_unidad": 76,
+    "indice_reutilizacion": 0.53
+  },
+  {
+    "material_id": "M11",
+    "material": "panel_madera",
+    "familia": "envolvente",
+    "densidad_kg_m3": 610,
+    "conductividad_o_u_referencia": 0.13,
+    "precio_indicativo_eur_unidad": 69,
+    "indice_reutilizacion": 0.82
+  },
+  {
+    "material_id": "M12",
+    "material": "panel_reciclado",
+    "familia": "envolvente",
+    "densidad_kg_m3": 820,
+    "conductividad_o_u_referencia": 0.21,
+    "precio_indicativo_eur_unidad": 73,
+    "indice_reutilizacion": 0.78
+  },
+  {
+    "material_id": "M13",
+    "material": "fachada_ventilada",
+    "familia": "envolvente",
+    "densidad_kg_m3": 980,
+    "conductividad_o_u_referencia": 0.25,
+    "precio_indicativo_eur_unidad": 98,
+    "indice_reutilizacion": 0.76
+  },
+  {
+    "material_id": "M14",
+    "material": "vidrio_doble",
+    "familia": "ventana",
+    "densidad_kg_m3": 2500,
+    "conductividad_o_u_referencia": 1.2,
+    "precio_indicativo_eur_unidad": 150,
+    "indice_reutilizacion": 0.53
+  },
+  {
+    "material_id": "M15",
+    "material": "vidrio_bajo_emisivo",
+    "familia": "ventana",
+    "densidad_kg_m3": 2700,
+    "conductividad_o_u_referencia": 0.9,
+    "precio_indicativo_eur_unidad": 196,
+    "indice_reutilizacion": 0.52
+  },
+  {
+    "material_id": "M16",
+    "material": "vidrio_triple",
+    "familia": "ventana",
+    "densidad_kg_m3": 3100,
+    "conductividad_o_u_referencia": 0.7,
+    "precio_indicativo_eur_unidad": 275,
+    "indice_reutilizacion": 0.57
+  },
+  {
+    "material_id": "M17",
+    "material": "lamina_reflectante",
+    "familia": "proteccion_solar",
+    "densidad_kg_m3": 150,
+    "conductividad_o_u_referencia": 0.22,
+    "precio_indicativo_eur_unidad": 15,
+    "indice_reutilizacion": 0.64
+  },
+  {
+    "material_id": "M18",
+    "material": "persiana_exterior",
+    "familia": "proteccion_solar",
+    "densidad_kg_m3": 280,
+    "conductividad_o_u_referencia": 0.17,
+    "precio_indicativo_eur_unidad": 41,
+    "indice_reutilizacion": 0.78
+  },
+  {
+    "material_id": "M19",
+    "material": "lamas_fijas",
+    "familia": "proteccion_solar",
+    "densidad_kg_m3": 380,
+    "conductividad_o_u_referencia": 0.19,
+    "precio_indicativo_eur_unidad": 70,
+    "indice_reutilizacion": 0.81
+  },
+  {
+    "material_id": "M20",
+    "material": "bateria_LFP",
+    "familia": "almacenamiento",
+    "densidad_kg_m3": 150,
+    "conductividad_o_u_referencia": 0,
+    "precio_indicativo_eur_unidad": 175,
+    "indice_reutilizacion": 0.79
+  },
+  {
+    "material_id": "M21",
+    "material": "bateria_NaIon",
+    "familia": "almacenamiento",
+    "densidad_kg_m3": 170,
+    "conductividad_o_u_referencia": 0,
+    "precio_indicativo_eur_unidad": 155,
+    "indice_reutilizacion": 0.72
+  },
+  {
+    "material_id": "M22",
+    "material": "FV_mono",
+    "familia": "solar",
+    "densidad_kg_m3": 12,
+    "conductividad_o_u_referencia": 0,
+    "precio_indicativo_eur_unidad": 210,
+    "indice_reutilizacion": 0.73
+  },
+  {
+    "material_id": "M23",
+    "material": "FV_bifacial",
+    "familia": "solar",
+    "densidad_kg_m3": 14,
+    "conductividad_o_u_referencia": 0,
+    "precio_indicativo_eur_unidad": 260,
+    "indice_reutilizacion": 0.69
+  },
+  {
+    "material_id": "M24",
+    "material": "ventilacion_recuperador",
+    "familia": "ventilacion",
+    "densidad_kg_m3": 30,
+    "conductividad_o_u_referencia": 0,
+    "precio_indicativo_eur_unidad": 700,
+    "indice_reutilizacion": 0.61
+  }
+]

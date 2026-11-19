@@ -1,0 +1,122 @@
+{
+  "proyecto": "Mission Climate Hackathon 2026",
+  "empresa": "ATOM_MODULAR",
+  "naturaleza": "DATOS COMPLETAMENTE SINTETICOS, NO SUMINISTRADOS POR LA EMPRESA",
+  "fecha_generacion": "2026-11-05",
+  "semilla_fija": 26051105,
+  "archivos": {
+    "atom_catalogo_materiales.csv": {
+      "rows": 24,
+      "columns": [
+        "material_id",
+        "material",
+        "familia",
+        "densidad_kg_m3",
+        "conductividad_o_u_referencia",
+        "precio_indicativo_eur_unidad",
+        "indice_reutilizacion",
+        "origen"
+      ],
+      "bytes": 1864
+    },
+    "atom_clima_horario.csv": {
+      "rows": 672,
+      "columns": [
+        "escenario_id",
+        "escenario",
+        "tipo_evento",
+        "hora_relativa",
+        "dia_relativo",
+        "hora_dia",
+        "temperatura_exterior_c",
+        "humedad_exterior_pct",
+        "radiacion_kwh_m2_h",
+        "viento_m_s",
+        "origen"
+      ],
+      "bytes": 47496
+    },
+    "atom_configuraciones.csv": {
+      "rows": 144,
+      "columns": [
+        "config_id",
+        "superficie_m2",
+        "plazas",
+        "largo_m",
+        "ancho_m",
+        "material_estructura_id",
+        "material_aislamiento_id",
+        "material_envolvente_id",
+        "material_ventana_id",
+        "material_sombra_id",
+        "aislamiento_m",
+        "u_pared_w_m2k",
+        "u_ventana_w_m2k",
+        "ventanas_m2",
+        "pv_m2",
+        "bateria_kwh",
+        "climatizacion_max_kw_term",
+        "peso_kg",
+        "coste_modulo_estimado_eur",
+        "montaje_dias_estimado",
+        "emisiones_incorporadas_kgco2e",
+        "fraccion_material_reutilizable",
+        "hipotesis"
+      ],
+      "bytes": 20316
+    },
+    "atom_casos_emergencia.csv": {
+      "rows": 60,
+      "columns": [
+        "caso_id",
+        "escenario_id",
+        "personas_afectadas",
+        "personas_por_modulo",
+        "duracion_estancia_dias",
+        "disponibilidad_red",
+        "plazo_maximo_montaje_dias",
+        "presupuesto_total_eur",
+        "acceso_camion",
+        "requisito_prioritario",
+        "origen"
+      ],
+      "bytes": 4036
+    },
+    "atom_simulacion_horaria.csv": {
+      "rows": 96768,
+      "columns": [
+        "config_id",
+        "escenario_id",
+        "hora_relativa",
+        "temperatura_exterior_c",
+        "temperatura_interior_modelo_c",
+        "demanda_electrica_kwh",
+        "energia_fv_kwh",
+        "soc_bateria_kwh",
+        "demanda_no_cubierta_sin_red_kwh",
+        "confort_hora"
+      ],
+      "bytes": 4821790
+    },
+    "atom_resultados_modelo.csv": {
+      "rows": 576,
+      "columns": [
+        "config_id",
+        "escenario_id",
+        "horas_simuladas",
+        "horas_confort",
+        "porcentaje_confort",
+        "consumo_bruto_kwh",
+        "generacion_solar_kwh",
+        "energia_no_cubierta_sin_red_kwh",
+        "potencia_maxima_demandada_kw",
+        "energia_climatizacion_frio_kwh",
+        "energia_climatizacion_calor_kwh",
+        "coste_modulo_estimado_eur",
+        "emisiones_incorporadas_kgco2e",
+        "modelo"
+      ],
+      "bytes": 60484
+    }
+  }
+}

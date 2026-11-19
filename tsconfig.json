@@ -1,0 +1,7 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "exclude": ["dist", "src/data", "ATOM_DataSet"]
+}

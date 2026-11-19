@@ -1,0 +1,722 @@
+---
+import {
+  evaluateScenario,
+  getCases,
+  inputLabels,
+  outputLabels,
+  snarioLabels,
+} from "../lib/desition-engine.js";
+
+const SCENARIO_LABELS = snarioLabels;
+
+// 60 casos d'emergència del dataset
+const CASES = getCases();
+const defaultCase = CASES.find((c) => c.id === "EM059") ?? CASES[0];
+
+const initialInput = { ...defaultCase.input };
+
+const initialResult = evaluateScenario(initialInput);
+
+const fmt = (val, dec = 0) =>
+  val.toLocaleString("ca-ES", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
+
+const badgeMap = {
+  viable: outputLabels.Veredicto.viable,
+  amb_estoc: outputLabels.Veredicto.ambEstoc,
+  no_arriba: outputLabels.Veredicto.noArriba,
+};
+---
+
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Un quadre de comandament per decidir · ATOM Modular</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+        --teal: #115e59;
+        --amber: #b45309;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.45;
+      }
+      .page {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 1.5rem 1.75rem 2.5rem;
+      }
+      h1 {
+        font-size: 1.85rem;
+        margin: 0 0 1.25rem;
+        color: #0f292e;
+        letter-spacing: -0.02em;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 1.25rem;
+        align-items: start;
+      }
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.1rem 1.2rem;
+      }
+      .sidebar h2 {
+        margin: 0 0 0.85rem;
+        font-size: 1.05rem;
+      }
+      .field {
+        margin-bottom: 0.85rem;
+      }
+      .field label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.3rem;
+      }
+      .field select,
+      .field input[type="number"] {
+        width: 100%;
+        padding: 0.48rem 0.6rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: #fff;
+        color: var(--text);
+      }
+      .field input[type="range"] {
+        width: 100%;
+        accent-color: var(--teal);
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+      }
+      .hint {
+        font-size: 0.75rem;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      /* Banner veredicte */
+      .banner {
+        padding: 1rem 1.2rem;
+        border-radius: 12px;
+        border: 1px solid;
+        margin-bottom: 1rem;
+      }
+      .banner-no_arriba {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #7f1d1d;
+      }
+      .banner-amb_estoc {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #78350f;
+      }
+      .banner-viable {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #14532d;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin-right: 0.5rem;
+      }
+      .badge-no_arriba {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .badge-amb_estoc {
+        background: #fef3c7;
+        color: #b45309;
+      }
+      .badge-viable {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .banner-detail {
+        margin-top: 0.35rem;
+        font-size: 0.92rem;
+      }
+
+      /* KPIs */
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+      }
+      @media (max-width: 760px) {
+        .kpis {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .kpi {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+      }
+      .kpi-label {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .kpi-val {
+        font-size: 1.45rem;
+        font-weight: 700;
+        margin: 0.2rem 0;
+      }
+      .kpi-sub {
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+
+      /* Mòduls A i B KPIs */
+      .ab-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      @media (max-width: 760px) {
+        .ab-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .ab-card {
+        background: #edf3f2;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        transition: opacity 0.2s ease;
+      }
+      .ab-card.is-empty {
+        opacity: 0.48;
+      }
+      .ab-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+      .ab-badge {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.92rem;
+        flex-shrink: 0;
+      }
+      .ab-badge-a {
+        background: var(--teal);
+      }
+      .ab-badge-b {
+        background: var(--amber);
+      }
+      .ab-title {
+        font-weight: 700;
+        font-size: 0.98rem;
+        color: var(--text);
+      }
+      .ab-sub {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+      }
+      .ab-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .ab-row {
+        display: grid;
+        grid-template-columns: 135px 1fr;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+      .ab-val {
+        font-size: 1.45rem;
+        font-weight: 700;
+        line-height: 1.15;
+      }
+      .ab-val-a {
+        color: var(--teal);
+      }
+      .ab-val-b {
+        color: var(--amber);
+      }
+      .ab-lbl {
+        font-size: 0.84rem;
+        color: var(--text);
+      }
+
+      /* Mid grid */
+      .mid-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      @media (max-width: 760px) {
+        .mid-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .section-title {
+        font-weight: 700;
+        font-size: 0.96rem;
+        margin: 0 0 0.7rem;
+      }
+      .stacked-bar {
+        display: flex;
+        height: 22px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #e2e8f0;
+        margin-bottom: 0.7rem;
+      }
+      .bar-a {
+        background: var(--teal);
+        transition: width 0.2s ease;
+      }
+      .bar-b {
+        background: var(--amber);
+        transition: width 0.2s ease;
+      }
+      .mix-row {
+        font-size: 0.88rem;
+        margin-bottom: 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        display: inline-block;
+      }
+      .progress-track {
+        height: 10px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+        margin: 0.45rem 0;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--teal);
+        transition: width 0.2s ease;
+      }
+      .kit-list {
+        margin: 0.5rem 0 0.65rem;
+        padding-left: 1.1rem;
+        font-size: 0.88rem;
+      }
+      .kit-list li {
+        margin-bottom: 0.25rem;
+      }
+      .kit-header {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 0.3rem;
+      }
+      .kit-header .section-title {
+        margin: 0;
+      }
+      .kit-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .kit-badge-calor {
+        background: #b03a2e;
+      }
+      .kit-badge-fred {
+        background: #4f7a85;
+      }
+      .kit-kpis {
+        display: grid;
+        gap: 0.5rem;
+        margin-bottom: 0.65rem;
+      }
+      .kit-kpi {
+        background: #e8eeee;
+        border-radius: 8px;
+        padding: 0.55rem 0.75rem;
+      }
+      .kit-kpi-val {
+        font-weight: 700;
+        font-size: 1.15rem;
+      }
+      .kit-kpi-calor .kit-kpi-val {
+        color: var(--teal);
+      }
+      .kit-kpi-fred .kit-kpi-val {
+        color: #4f7a85;
+      }
+      .kit-kpi-txt {
+        font-size: 0.82rem;
+        color: var(--text);
+      }
+      .kit-list code {
+        background: #f1f5f9;
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+        font-size: 0.84rem;
+      }
+
+      /* Avisos */
+      .aviso {
+        padding: 0.65rem 0.9rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        font-size: 0.88rem;
+        border-left: 4px solid;
+      }
+      .aviso-danger {
+        background: #fef2f2;
+        border-color: #dc2626;
+      }
+      .aviso-info {
+        background: #f8fafc;
+        border-color: var(--teal);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1>Un quadre de comandament per decidir</h1>
+
+      <div class="layout">
+        <aside class="card sidebar">
+          <h2>Dades del cas</h2>
+
+          <div class="field">
+            <label for="casoId">Cas d'emergència ({CASES.length})</label>
+            <select id="casoId">
+              {
+                CASES.map((c) => (
+                  <option value={c.id} selected={c.id === defaultCase.id}>
+                    {c.label}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="escenarioId">{inputLabels.Clima}</label>
+            <select id="escenarioId">
+              {
+                Object.entries(SCENARIO_LABELS).map(([k, lbl]) => (
+                  <option value={k} selected={k === initialInput.escenarioId}>
+                    {lbl}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="personasAfectadas">{inputLabels.Personas}</label>
+              <input id="personasAfectadas" type="number" min="1" max="2000" step="4" value={initialInput.personasAfectadas} />
+            </div>
+            <div class="field">
+              <label for="plazoMaximoDias">{inputLabels.Termino}</label>
+              <input id="plazoMaximoDias" type="number" min="0.5" max="30" step="0.5" value={initialInput.plazoMaximoDias} />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="presupuestoTotalEur">{inputLabels.Presupuesto}</label>
+            <input id="presupuestoTotalEur" type="number" min="10000" max="50000000" step="10000" value={initialInput.presupuestoTotalEur} />
+          </div>
+
+          <div class="field">
+            <label for="pctConexionRed">
+              {inputLabels.PorcentajeRed}: <strong id="pctRedValue">{initialInput.pctConexionRed}%</strong>
+            </label>
+            <input id="pctConexionRed" type="range" min="0" max="100" step="5" value={initialInput.pctConexionRed} />
+            <div class="hint">
+              <span>0% = sense xarxa</span>
+              <span>100% = tots connectats</span>
+            </div>
+          </div>
+        </aside>
+
+        <section>
+          <div id="banner" class={`banner banner-${initialResult.veredicto}`}>
+            <div>
+              <span id="bannerBadge" class={`badge badge-${initialResult.veredicto}`}>
+                {badgeMap[initialResult.veredicto]}
+              </span>
+              <strong id="bannerTitle">{initialResult.veredictoTitulo}</strong>
+            </div>
+            <div id="bannerDetail" class="banner-detail">{initialResult.veredictoDetalle}</div>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi">
+              <div class="kpi-label">{outputLabels.Coste}</div>
+              <div id="kpiCostTotal" class="kpi-val">{fmt(initialResult.costeTotalEur)} €</div>
+              <div id="kpiCostPct" class="kpi-sub">{fmt(initialResult.pctPresupuesto, 1)}% del pressupost</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">{outputLabels.CO2}</div>
+              <div id="kpiCo2" class="kpi-val">{fmt(initialResult.co2TotalT, 1)} t</div>
+              <div id="kpiCo2Pers" class="kpi-sub">{fmt(initialResult.co2PorPersonaKg)} kg per persona</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">{outputLabels.ModulosA}</div>
+              <div id="kpiModA" class="kpi-val">{initialResult.configA?.count ?? 0}</div>
+              <div class="kpi-sub">Autosuficients</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">{outputLabels.ModulosB}</div>
+              <div id="kpiModB" class="kpi-val">{initialResult.configB?.count ?? 0}</div>
+              <div class="kpi-sub">Amb xarxa</div>
+            </div>
+          </div>
+
+          <div class="mid-grid">
+            <div class="card">
+              <div class="section-title">{outputLabels.ModulosA} / {outputLabels.ModulosB}</div>
+              <div class="stacked-bar">
+                <div
+                  id="barA"
+                  class="bar-a"
+                  style={`width: ${((initialResult.configA?.count ?? 0) / initialResult.totalModulos) * 100}%`}
+                ></div>
+                <div
+                  id="barB"
+                  class="bar-b"
+                  style={`width: ${((initialResult.configB?.count ?? 0) / initialResult.totalModulos) * 100}%`}
+                ></div>
+              </div>
+              <div id="mixDetails">
+                {
+                  initialResult.configA && (
+                    <div class="mix-row">
+                      <span class="dot" style="background: var(--teal)"></span>
+                      <span>
+                        <strong>{outputLabels.ModulosA} ({initialResult.configA.configId}):</strong>{" "}
+                        {initialResult.configA.count} ({fmt(initialResult.configA.costeSubtotalEur)} €)
+                      </span>
+                    </div>
+                  )
+                }
+                {
+                  initialResult.configB && (
+                    <div class="mix-row">
+                      <span class="dot" style="background: var(--amber)"></span>
+                      <span>
+                        <strong>{outputLabels.ModulosB} ({initialResult.configB.configId}):</strong>{" "}
+                        {initialResult.configB.count} ({fmt(initialResult.configB.costeSubtotalEur)} €)
+                      </span>
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+
+            <div class="card">
+              {
+                (() => {
+                  const primary = initialResult.configA ?? initialResult.configB;
+                  const kit = initialResult.kit;
+                  return (
+                    <>
+                      <div class="kit-header">
+                        <span id="kitBadge" class={`kit-badge kit-badge-${kit.id}`}>{kit.inicial}</span>
+                        <div>
+                          <div id="kitTitle" class="section-title">{outputLabels.KitRecomendado}: {kit.nombre}</div>
+                          <div id="kitSubtitle" class="kpi-sub">
+                            {SCENARIO_LABELS[initialInput.escenarioId]} · {kit.subtitulo}
+                          </div>
+                        </div>
+                      </div>
+                      <ul id="kitMaterials" class="kit-list">
+                        {kit.materiales.map((item) => (
+                          <li>{item}</li>
+                        ))}
+                      </ul>
+                      <div id="kitKpis" class="kit-kpis">
+                        {kit.kpis.map((k) => (
+                          <div class={`kit-kpi kit-kpi-${kit.id}`}>
+                            <div class="kit-kpi-val">{k.valor}</div>
+                            <div class="kit-kpi-txt">{k.texto}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div id="kitEnergy" class="kpi-sub">
+                        {outputLabels.Energia}: {primary.pvM2} m² FV · {primary.bateriaKwh} kWh bateria
+                        {primary.climatizacionKw != null && ` · ${primary.climatizacionKw} kW`}
+                      </div>
+                    </>
+                  );
+                })()
+              }
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script define:vars={{ SCENARIO_LABELS, outputLabels, CASES }}>
+      const badgeMap = {
+        viable: outputLabels.Veredicto.viable,
+        amb_estoc: outputLabels.Veredicto.ambEstoc,
+        no_arriba: outputLabels.Veredicto.noArriba,
+      };
+
+      const el = (id) => document.getElementById(id);
+      const fmt = (val, dec = 0) =>
+        Number(val).toLocaleString("ca-ES", {
+          minimumFractionDigits: dec,
+          maximumFractionDigits: dec,
+        });
+
+      const fields = [
+        "escenarioId",
+        "personasAfectadas",
+        "plazoMaximoDias",
+        "presupuestoTotalEur",
+        "pctConexionRed",
+      ];
+
+      function readInput() {
+        return {
+          escenarioId: el("escenarioId").value,
+          personasAfectadas: Number(el("personasAfectadas").value),
+          plazoMaximoDias: Number(el("plazoMaximoDias").value),
+          presupuestoTotalEur: Number(el("presupuestoTotalEur").value),
+          pctConexionRed: Number(el("pctConexionRed").value),
+        };
+      }
+
+      function renderResult(res, input) {
+        const banner = el("banner");
+        banner.className = `banner banner-${res.veredicto}`;
+        const badge = el("bannerBadge");
+        badge.className = `badge badge-${res.veredicto}`;
+        badge.textContent = badgeMap[res.veredicto];
+        el("bannerTitle").textContent = res.veredictoTitulo;
+        el("bannerDetail").textContent = res.veredictoDetalle;
+
+        el("kpiCostTotal").textContent = `${fmt(res.costeTotalEur)} €`;
+        el("kpiCostPct").textContent = `${fmt(res.pctPresupuesto, 1)}% del pressupost`;
+        el("kpiCo2").textContent = `${fmt(res.co2TotalT, 1)} t`;
+        el("kpiCo2Pers").textContent = `${fmt(res.co2PorPersonaKg)} kg per persona`;
+
+        const cntA = res.configA ? res.configA.count : 0;
+        const cntB = res.configB ? res.configB.count : 0;
+        el("kpiModA").textContent = String(cntA);
+        el("kpiModB").textContent = String(cntB);
+        el("barA").style.width = `${(cntA / res.totalModulos) * 100}%`;
+        el("barB").style.width = `${(cntB / res.totalModulos) * 100}%`;
+
+        let mixHtml = "";
+        if (res.configA) {
+          mixHtml += `<div class="mix-row"><span class="dot" style="background: var(--teal)"></span><span><strong>${outputLabels.ModulosA} (${res.configA.configId}):</strong> ${res.configA.count} (${fmt(res.configA.costeSubtotalEur)} €)</span></div>`;
+        }
+        if (res.configB) {
+          mixHtml += `<div class="mix-row"><span class="dot" style="background: var(--amber)"></span><span><strong>${outputLabels.ModulosB} (${res.configB.configId}):</strong> ${res.configB.count} (${fmt(res.configB.costeSubtotalEur)} €)</span></div>`;
+        }
+        el("mixDetails").innerHTML = mixHtml;
+
+        const primary = res.configA ?? res.configB;
+        const kit = res.kit;
+        const badgeKit = el("kitBadge");
+        badgeKit.className = `kit-badge kit-badge-${kit.id}`;
+        badgeKit.textContent = kit.inicial;
+        el("kitTitle").textContent = `${outputLabels.KitRecomendado}: ${kit.nombre}`;
+        el("kitSubtitle").textContent = `${SCENARIO_LABELS[input.escenarioId]} · ${kit.subtitulo}`;
+        el("kitMaterials").innerHTML = kit.materiales
+          .map((item) => `<li>${item}</li>`)
+          .join("");
+        el("kitKpis").innerHTML = kit.kpis
+          .map(
+            (k) =>
+              `<div class="kit-kpi kit-kpi-${kit.id}"><div class="kit-kpi-val">${k.valor}</div><div class="kit-kpi-txt">${k.texto}</div></div>`,
+          )
+          .join("");
+        const clima = primary.climatizacionKw != null ? ` · ${primary.climatizacionKw} kW` : "";
+        el("kitEnergy").textContent = `${outputLabels.Energia}: ${primary.pvM2} m² FV · ${primary.bateriaKwh} kWh bateria${clima}`;
+      }
+
+      async function evaluate() {
+        const input = readInput();
+        el("pctRedValue").textContent = `${input.pctConexionRed}%`;
+        const resp = await fetch("/api/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          renderResult(data, input);
+        }
+      }
+
+      for (const id of fields) {
+        el(id).addEventListener("input", evaluate);
+        el(id).addEventListener("change", evaluate);
+      }
+
+      // En triar un cas, s'omplen els camps i es recalcula
+      el("casoId").addEventListener("change", () => {
+        const caso = CASES.find((c) => c.id === el("casoId").value);
+        if (!caso) return;
+        for (const id of fields) {
+          el(id).value = caso.input[id];
+        }
+        evaluate();
+      });
+    </script>
+  </body>
+</html>
