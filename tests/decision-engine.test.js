@@ -58,7 +58,7 @@ describe("ATOM Modular desition-engine (JS + JSON)", () => {
       presupuestoTotalEur: 1729475,
       pctConexionRed: 50,
     });
-    assert.match(em059.label, /^EM059 · Fred continental · 160 persones$/);
+    assert.match(em059.label, /^EM059 · 160 persones$/);
   });
 
   it("vidre baix emissiu als materials comuns, sense duplicar", () => {

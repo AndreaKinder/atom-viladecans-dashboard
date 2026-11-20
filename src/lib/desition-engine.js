@@ -445,7 +445,7 @@ export function evaluateScenario(input) {
 export function getCases() {
   return rawCasesData.map((c) => ({
     id: c.caso_id,
-    label: `${c.caso_id} · ${snarioLabels[c.escenario_id] ?? c.escenario_id} · ${c.personas_afectadas} persones`,
+    label: `${c.caso_id} · ${c.personas_afectadas} persones`,
     input: {
       escenarioId: c.escenario_id,
       personasAfectadas: Number(c.personas_afectadas),
