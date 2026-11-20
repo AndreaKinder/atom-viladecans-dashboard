@@ -46,6 +46,8 @@ const initialCostB = getCostModulesB(
   initialInput.personasAfectadas,
   initialPercentA,
 );
+const initialBudget = initialInput.presupuestoTotalEur;
+const initialOverBudget = initialTotalCost > initialBudget;
 
 const formatEur = (val) =>
   `${Math.round(val).toLocaleString("ca-ES")} €`;
@@ -104,6 +106,17 @@ const formatEur = (val) =>
           </div>
 
           <div class="field">
+            <label for="presupuestoTotalEur">Pressupost total (€)</label>
+            <input
+              id="presupuestoTotalEur"
+              type="number"
+              min="0"
+              step="1000"
+              value={initialBudget}
+            />
+          </div>
+
+          <div class="field">
             <label for="percentModulesA">
               Mòduls autosuficients A (<span id="percentModulesAVal">{initialPercentA}</span>%)
             </label>
@@ -123,6 +136,34 @@ const formatEur = (val) =>
         </aside>
 
         <section>
+          <div
+            id="budgetBanner"
+            class={`banner ${initialOverBudget ? "banner-no_arriba" : "banner-viable"}`}
+          >
+            <div>
+              <span
+                id="budgetBadge"
+                class={`badge ${initialOverBudget ? "badge-no_arriba" : "badge-viable"}`}
+              >
+                {initialOverBudget ? "Supera el pressupost" : "Dins del pressupost"}
+              </span>
+              <strong id="budgetHeadline">
+                {
+                  initialOverBudget
+                    ? `Excedeix en ${formatEur(initialTotalCost - initialBudget)}`
+                    : `Queden lliures ${formatEur(initialBudget - initialTotalCost)}`
+                }
+              </strong>
+            </div>
+            <div id="budgetDetail" class="banner-detail">
+              {
+                initialOverBudget
+                  ? `El cost calculat (${formatEur(initialTotalCost)}) supera el pressupost de ${formatEur(initialBudget)}.`
+                  : `El cost calculat (${formatEur(initialTotalCost)}) s'ajusta al pressupost de ${formatEur(initialBudget)}.`
+              }
+            </div>
+          </div>
+
           <div class="kpis">
             <div class="kpi">
               <div class="kpi-label">Cost total estimat</div>
@@ -216,6 +257,10 @@ const formatEur = (val) =>
 
       function renderCost() {
         const people = Math.max(0, Number(el("personasAfectadas").value) || 0);
+        const budget = Math.max(
+          0,
+          Number(el("presupuestoTotalEur").value) || 0,
+        );
         const percentA = Math.min(
           100,
           Math.max(0, Number(el("percentModulesA").value) || 0),
@@ -231,6 +276,21 @@ const formatEur = (val) =>
         const costA = getCostModulesA(people, percentA);
         const costB = getCostModulesB(people, percentA);
         const totalCost = getTotalCost(people, percentA);
+
+        const overBudget = totalCost > budget;
+        el("budgetBanner").className =
+          `banner ${overBudget ? "banner-no_arriba" : "banner-viable"}`;
+        el("budgetBadge").className =
+          `badge ${overBudget ? "badge-no_arriba" : "badge-viable"}`;
+        el("budgetBadge").textContent = overBudget
+          ? "Supera el pressupost"
+          : "Dins del pressupost";
+        el("budgetHeadline").textContent = overBudget
+          ? `Excedeix en ${formatEur(totalCost - budget)}`
+          : `Queden lliures ${formatEur(budget - totalCost)}`;
+        el("budgetDetail").textContent = overBudget
+          ? `El cost calculat (${formatEur(totalCost)}) supera el pressupost de ${formatEur(budget)}.`
+          : `El cost calculat (${formatEur(totalCost)}) s'ajusta al pressupost de ${formatEur(budget)}.`;
 
         el("totalCostVal").textContent = formatEur(totalCost);
         el("totalCostSub").textContent =
@@ -266,12 +326,13 @@ const formatEur = (val) =>
         );
       }
 
-      // En triar un cas, s'actualitzen clima, persones, % i càlculs
+      // En triar un cas, s'actualitzen clima, persones, pressupost, % i càlculs
       el("casoId").addEventListener("change", () => {
         const caso = CASES.find((c) => c.id === el("casoId").value);
         if (!caso) return;
         el("escenarioId").value = caso.input.escenarioId;
         el("personasAfectadas").value = caso.input.personasAfectadas;
+        el("presupuestoTotalEur").value = caso.input.presupuestoTotalEur;
         el("percentModulesA").value = 100 - caso.input.pctConexionRed;
         renderKit(caso.input.escenarioId);
         renderCost();
@@ -283,6 +344,7 @@ const formatEur = (val) =>
       });
 
       el("personasAfectadas").addEventListener("input", renderCost);
+      el("presupuestoTotalEur").addEventListener("input", renderCost);
       el("percentModulesA").addEventListener("input", renderCost);
     </script>
   </body>
