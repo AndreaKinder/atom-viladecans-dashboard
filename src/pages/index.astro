@@ -219,19 +219,6 @@ const initialBanner = getBannerState(
           <h2>Dades del cas</h2>
 
           <div class="field">
-            <label for="casoId">Cas d'emergència ({CASES.length})</label>
-            <select id="casoId">
-              {
-                CASES.map((c) => (
-                  <option value={c.id} selected={c.id === defaultCase.id}>
-                    {c.label}
-                  </option>
-                ))
-              }
-            </select>
-          </div>
-
-          <div class="field">
             <label for="escenarioId">{inputLabels.Clima}</label>
             <select id="escenarioId">
               {
@@ -595,7 +582,7 @@ const initialBanner = getBannerState(
       </section>
     </main>
 
-    <script define:vars={{ CASES, KITS, PROPORTIONS_FACTORS, SCENARIO_KIT }}>
+    <script define:vars={{ KITS, PROPORTIONS_FACTORS, SCENARIO_KIT }}>
       const el = (id) => document.getElementById(id);
 
       const getPeopleForModule =
@@ -889,20 +876,6 @@ const initialBanner = getBannerState(
           }),
         );
       }
-
-      // En triar un cas, s'actualitzen clima, persones, estada, termini, pressupost, % i càlculs
-      el("casoId").addEventListener("change", () => {
-        const caso = CASES.find((c) => c.id === el("casoId").value);
-        if (!caso) return;
-        el("escenarioId").value = caso.input.escenarioId;
-        el("personasAfectadas").value = caso.input.personasAfectadas;
-        el("duracionEstanciaDias").value = caso.input.duracionEstanciaDias;
-        el("plazoMaximoDias").value = caso.input.plazoMaximoDias;
-        el("presupuestoTotalEur").value = caso.input.presupuestoTotalEur;
-        el("percentModulesA").value = 100 - caso.input.pctConexionRed;
-        renderKit(caso.input.escenarioId);
-        renderCost();
-      });
 
       // En canviar el clima manualment, també s'actualitza el kit
       el("escenarioId").addEventListener("change", () => {
