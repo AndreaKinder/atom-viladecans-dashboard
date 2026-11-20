@@ -132,6 +132,7 @@ export const PROPORTIONS_FACTORS = {
   common: {
     areaM2: 22,
     capacity: 4,
+    parallelTeams: 10,
     lowEmissivityGlassM2: 3,
     chassis: "fusta laminada · cel·lulosa 24 cm (U 0,162) · panell de fusta",
   },
@@ -199,7 +200,8 @@ export function getDaysModulesA(people, percentModulesA) {
     (people *
       getKDaysModules(PROPORTIONS_FACTORS.moduleA.assemblyDays) *
       percentModulesA) /
-    100
+    100 /
+    PROPORTIONS_FACTORS.common.parallelTeams
   );
 }
 
@@ -208,7 +210,8 @@ export function getDaysModulesB(people, percentModulesA) {
     (people *
       getKDaysModules(PROPORTIONS_FACTORS.moduleB.assemblyDays) *
       (100 - percentModulesA)) /
-    100
+    100 /
+    PROPORTIONS_FACTORS.common.parallelTeams
   );
 }
 
@@ -217,6 +220,15 @@ export function getTotalDays(people, percentModulesA) {
     getDaysModulesA(people, percentModulesA) +
     getDaysModulesB(people, percentModulesA)
   );
+}
+
+export function getCostPerPerson(people, percentModulesA, stayDays) {
+  const safePeople = Math.max(0, Number(people) || 0);
+  const safeStayDays = Math.max(0, Number(stayDays) || 0);
+  const totalCost = getTotalCost(safePeople, percentModulesA);
+  const perPerson = safePeople > 0 ? totalCost / safePeople : 0;
+  const perPersonNight = safeStayDays > 0 ? perPerson / safeStayDays : 0;
+  return { perPerson, perPersonNight };
 }
 
 export function getStockCoverage(people, stockModules) {

@@ -4,12 +4,16 @@ import {
   getCases,
   getCostModulesA,
   getCostModulesB,
+  getCostPerPerson,
+  getDaysModulesA,
+  getDaysModulesB,
   getKitForScenario,
   getModuleMixFromRedPct,
   getNumberModuleAByPercent,
   getNumberModuleBByPercent,
   getStockCoverage,
   getTotalCost,
+  getTotalDays,
   inputLabels,
   KITS,
   PROPORTIONS_FACTORS,
@@ -55,16 +59,63 @@ const initialStock = getStockCoverage(
   initialInput.personasAfectadas,
   DEFAULT_STOCK_MODULES,
 );
+const initialDaysA = getDaysModulesA(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialDaysB = getDaysModulesB(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialTotalDays = getTotalDays(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialPersonCost = getCostPerPerson(
+  initialInput.personasAfectadas,
+  initialPercentA,
+  initialStayDays,
+);
 const formatEur = (val) =>
   `${Math.round(val).toLocaleString("ca-ES")} €`;
+const formatDays = (val) =>
+  val.toLocaleString("ca-ES", { maximumFractionDigits: 1 });
 
-function getBannerState(people, budget, totalCost, stockPeople) {
+function getBannerState(
+  people,
+  budget,
+  totalCost,
+  stockPeople,
+  stayDays,
+  maxDays,
+  totalDays,
+) {
   if (totalCost > budget) {
     return {
       variant: "no_arriba",
       badge: "Supera el pressupost",
       headline: `Excedeix en ${formatEur(totalCost - budget)}`,
       detail: `El cost calculat (${formatEur(totalCost)}) supera el pressupost de ${formatEur(budget)}. L'estoc desplegat allotja ${stockPeople} de ${people} persones.`,
+    };
+  }
+  if (totalDays > maxDays && stockPeople < people) {
+    const missing = people - stockPeople;
+    const extraStay =
+      totalDays > stayDays ? ` i supera l'estada de ${stayDays} dies` : "";
+    return {
+      variant: "no_arriba",
+      badge: "No arriba a temps",
+      headline: `Muntatge (${formatDays(totalDays)} dies) > termini (${maxDays} dies)`,
+      detail: `El termini de ${maxDays} dies és més curt que el muntatge (${formatDays(totalDays)} dies)${extraStay} (estada: ${stayDays} dies). L'estoc desplegat allotja ${stockPeople} de ${people} persones; les altres ${missing} tindrien mòdul al dia ${Math.ceil(totalDays)}.`,
+    };
+  }
+  if (totalDays > stayDays && stockPeople < people) {
+    const missing = people - stockPeople;
+    return {
+      variant: "no_arriba",
+      badge: "Supera l'estada",
+      headline: `Muntatge (${formatDays(totalDays)} dies) > estada (${stayDays} dies)`,
+      detail: `El muntatge (${formatDays(totalDays)} dies) supera l'estada de ${stayDays} dies (termini: ${maxDays} dies). L'estoc desplegat allotja ${stockPeople} de ${people} persones; falten ${missing}.`,
     };
   }
   const freeBudget = formatEur(budget - totalCost);
@@ -77,14 +128,14 @@ function getBannerState(people, budget, totalCost, stockPeople) {
         stockPeople === 0
           ? `Sense estoc a la zona · falten ${missing} persones`
           : `Estoc per a ${stockPeople} de ${people} persones`,
-      detail: `Dins del pressupost (queden lliures ${freeBudget}). Falten ${missing} persones per allotjar amb nous mòduls.`,
+      detail: `Dins del pressupost (queden lliures ${freeBudget}), termini (${maxDays} dies) i estada (${stayDays} dies). Falten ${missing} persones per allotjar amb nous mòduls.`,
     };
   }
   return {
     variant: "viable",
     badge: "Cobertura completa",
     headline: `Queden lliures ${freeBudget}`,
-    detail: `Dins del pressupost de ${formatEur(budget)}. L'estoc desplegat allotja totes les ${people} persones.`,
+    detail: `Dins del pressupost (${formatEur(budget)}), termini (${maxDays} dies) i estada (${stayDays} dies). L'estoc desplegat allotja totes les ${people} persones.`,
   };
 }
 
@@ -93,6 +144,9 @@ const initialBanner = getBannerState(
   initialBudget,
   initialTotalCost,
   initialStock.stockPeople,
+  initialStayDays,
+  initialMaxDays,
+  initialTotalDays,
 );
 ---
 
@@ -107,7 +161,28 @@ const initialBanner = getBannerState(
     <main class="page">
       <h1>Un quadre de comandament per decidir</h1>
 
-      <div class="layout">
+      <div class="tabs" role="tablist">
+        <button
+          id="tabDashboard"
+          type="button"
+          class="tab-btn is-active"
+          role="tab"
+          aria-selected="true"
+        >
+          Quadre de comandament
+        </button>
+        <button
+          id="tabFormulas"
+          type="button"
+          class="tab-btn"
+          role="tab"
+          aria-selected="false"
+        >
+          Fórmules i criteris
+        </button>
+      </div>
+
+      <div id="panelDashboard" class="layout">
         <aside class="card sidebar">
           <h2>Dades del cas</h2>
 
@@ -246,10 +321,33 @@ const initialBanner = getBannerState(
             </div>
 
             <div class="kpi">
+              <div class="kpi-label">Cost per persona</div>
+              <div id="perPersonVal" class="kpi-val">
+                {formatEur(initialPersonCost.perPerson)}
+              </div>
+              <div id="perPersonSub" class="kpi-sub">
+                {formatEur(initialPersonCost.perPersonNight)} per persona i nit
+              </div>
+            </div>
+
+            <div class="kpi">
+              <div class="kpi-label">Desplegament (pendent de revisar)</div>
+              <div id="totalDaysVal" class="kpi-val">
+                {formatDays(initialTotalDays)} dies
+              </div>
+              <div id="totalDaysSub" class="kpi-sub">
+                {
+                  `${initialTotalDays > initialMaxDays ? "fora" : "dins"} termini (${initialMaxDays}d) · ${initialTotalDays > initialStayDays ? "fora" : "dins"} estada (${initialStayDays}d)`
+                }
+              </div>
+            </div>
+
+            <div class="kpi">
               <div class="kpi-label">Mòduls A · Autosuficient</div>
               <div id="costAVal" class="kpi-val">{formatEur(initialCostA)}</div>
               <div id="modulesASub" class="kpi-sub">
-                {initialModulesA} mòduls ({initialPercentA}%)
+                {initialModulesA} mòduls ({initialPercentA}%) ·{" "}
+                {formatDays(initialDaysA)} dies
               </div>
             </div>
 
@@ -257,7 +355,8 @@ const initialBanner = getBannerState(
               <div class="kpi-label">Mòduls B · Amb xarxa</div>
               <div id="costBVal" class="kpi-val">{formatEur(initialCostB)}</div>
               <div id="modulesBSub" class="kpi-sub">
-                {initialModulesB} mòduls ({100 - initialPercentA}%)
+                {initialModulesB} mòduls ({100 - initialPercentA}%) ·{" "}
+                {formatDays(initialDaysB)} dies
               </div>
             </div>
           </div>
@@ -279,6 +378,107 @@ const initialBanner = getBannerState(
           </div>
         </section>
       </div>
+
+      <section id="panelFormulas" hidden>
+        <div class="card">
+          <div class="section-title">
+            Com funciona el càlcul (explicat pas a pas)
+          </div>
+          <ul class="kit-list">
+            <li>
+              <strong>1. Quants mòduls calen?</strong> Cada mòdul allotja{" "}
+              <strong>4 persones</strong>. Es calcula el total de mòduls i es
+              reparteix segons el percentatge triat entre{" "}
+              <strong>Mòduls A (autosuficients)</strong> i{" "}
+              <strong>Mòduls B (connectats a la xarxa)</strong>:
+              <div class="formula-box">
+                Mòduls totals = Persones afectades ÷ 4<br />
+                Mòduls A = Mòduls totals × (% A ÷ 100)<br />
+                Mòduls B = Mòduls totals × ((100 − % A) ÷ 100)
+              </div>
+            </li>
+            <li>
+              <strong>2. Quant costa el desplegament?</strong> Cada mòdul A
+              costa <strong>33.530 €</strong> i cada mòdul B costa{" "}
+              <strong>27.400 €</strong> (fabricat i instal·lat):
+              <div class="formula-box">
+                Cost total = (Mòduls A × 33.530 €) + (Mòduls B × 27.400 €)<br />
+                Cost per persona = Cost total ÷ Persones afectades<br />
+                Cost per persona i nit = Cost per persona ÷ Dies d'estada{" "}
+                <em>(pendent de revisar)</em>
+              </div>
+            </li>
+            <li>
+              <strong>
+                3. Quants dies es triga a muntar? (pendent de revisar)
+              </strong>{" "}
+              Un mòdul A requereix <strong>3,6 dies</strong> i un mòdul B
+              requereix <strong>3,1 dies</strong>, amb{" "}
+              <strong>10 equips treballant en paral·lel</strong>:
+              <div class="formula-box">
+                Dies Mòduls A = (Mòduls A × 3,6 dies) ÷ 10 equips{" "}
+                <em>(pendent de revisar)</em>
+                <br />
+                Dies Mòduls B = (Mòduls B × 3,1 dies) ÷ 10 equips{" "}
+                <em>(pendent de revisar)</em>
+                <br />
+                Dies totals de desplegament = Dies Mòduls A + Dies Mòduls B{" "}
+                <em>(pendent de revisar)</em>
+              </div>
+            </li>
+            <li>
+              <strong>4. Què cobreixen els mòduls-refugi a la zona?</strong>{" "}
+              Cada mòdul ja disponible sobre el terreny allotja immediatament{" "}
+              <strong>4 persones</strong> (fins a cobrir el total d'afectats):
+              <div class="formula-box">
+                Places immediates a la zona = Mòduls-refugi a la zona × 4<br />
+                Persones pendents de nou mòdul = Persones afectades − Places
+                immediates cobertes
+              </div>
+            </li>
+            <li>
+              <strong>5. Com es decideix l'avís superior (el semàfor)?</strong>
+              <ul class="kit-list">
+                <li>
+                  <strong>Vermell (Supera el pressupost):</strong> Cost total
+                  &gt; Pressupost disponible.
+                </li>
+                <li>
+                  <strong>
+                    Vermell (No arriba a temps) (pendent de revisar):
+                  </strong>{" "}
+                  Dies totals de desplegament &gt; Termini màxim i encara queden
+                  persones pendents de mòdul.
+                </li>
+                <li>
+                  <strong>
+                    Vermell (Supera l'estada) (pendent de revisar):
+                  </strong>{" "}
+                  Dies totals de desplegament &gt; Dies d'estada i encara queden
+                  persones pendents de mòdul.
+                </li>
+                <li>
+                  <strong>Ambre (Cobertura parcial):</strong> Cost total ≤
+                  Pressupost i Dies totals ≤ Termini i Estada, però les places
+                  immediates a la zona són menors que les persones afectades.
+                </li>
+                <li>
+                  <strong>Verd (Cobertura completa):</strong> Cost total ≤
+                  Pressupost, Dies totals ≤ Termini i Estada, i les places
+                  immediates a la zona cobreixen totes les persones afectades.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>6. Quin kit climàtic es tria?</strong> Tots els mòduls
+              comparteixen el mateix xassís de fusta de 22 m², i segons el clima
+              s'equipa el <strong>Kit Calor</strong> (onada de calor costanera,
+              d'interior o post-tempesta humida) o el{" "}
+              <strong>Kit Fred</strong> (fred continental).
+            </li>
+          </ul>
+        </div>
+      </section>
     </main>
 
     <script define:vars={{ CASES, KITS, PROPORTIONS_FACTORS, SCENARIO_KIT }}>
@@ -317,6 +517,37 @@ const initialBanner = getBannerState(
         );
       }
 
+      function getKDaysModules(daysForModule) {
+        return getPeopleForModule * daysForModule;
+      }
+
+      function getDaysModulesA(people, percentModulesA) {
+        return (
+          (people *
+            getKDaysModules(PROPORTIONS_FACTORS.moduleA.assemblyDays) *
+            percentModulesA) /
+          100 /
+          PROPORTIONS_FACTORS.common.parallelTeams
+        );
+      }
+
+      function getDaysModulesB(people, percentModulesA) {
+        return (
+          (people *
+            getKDaysModules(PROPORTIONS_FACTORS.moduleB.assemblyDays) *
+            (100 - percentModulesA)) /
+          100 /
+          PROPORTIONS_FACTORS.common.parallelTeams
+        );
+      }
+
+      function getTotalDays(people, percentModulesA) {
+        return (
+          getDaysModulesA(people, percentModulesA) +
+          getDaysModulesB(people, percentModulesA)
+        );
+      }
+
       function formatEur(val) {
         return `${Math.round(val).toLocaleString("ca-ES")} €`;
       }
@@ -325,17 +556,45 @@ const initialBanner = getBannerState(
         return Number.isInteger(val) ? String(val) : val.toFixed(1);
       }
 
-      function renderBanner(people, budget, totalCost, stockPeople) {
+      function formatDays(val) {
+        return val.toLocaleString("ca-ES", { maximumFractionDigits: 1 });
+      }
+
+      function renderBanner(
+        people,
+        budget,
+        totalCost,
+        stockPeople,
+        stayDays,
+        maxDays,
+        totalDays,
+      ) {
         let variant = "viable";
         let badge = "Cobertura completa";
         let headline = `Queden lliures ${formatEur(budget - totalCost)}`;
-        let detail = `Dins del pressupost de ${formatEur(budget)}. L'estoc desplegat allotja totes les ${people} persones.`;
+        let detail = `Dins del pressupost (${formatEur(budget)}), termini (${maxDays} dies) i estada (${stayDays} dies). L'estoc desplegat allotja totes les ${people} persones.`;
 
         if (totalCost > budget) {
           variant = "no_arriba";
           badge = "Supera el pressupost";
           headline = `Excedeix en ${formatEur(totalCost - budget)}`;
           detail = `El cost calculat (${formatEur(totalCost)}) supera el pressupost de ${formatEur(budget)}. L'estoc desplegat allotja ${stockPeople} de ${people} persones.`;
+        } else if (totalDays > maxDays && stockPeople < people) {
+          const missing = people - stockPeople;
+          const extraStay =
+            totalDays > stayDays
+              ? ` i supera l'estada de ${stayDays} dies`
+              : "";
+          variant = "no_arriba";
+          badge = "No arriba a temps";
+          headline = `Muntatge (${formatDays(totalDays)} dies) > termini (${maxDays} dies)`;
+          detail = `El termini de ${maxDays} dies és més curt que el muntatge (${formatDays(totalDays)} dies)${extraStay} (estada: ${stayDays} dies). L'estoc desplegat allotja ${stockPeople} de ${people} persones; les altres ${missing} tindrien mòdul al dia ${Math.ceil(totalDays)}.`;
+        } else if (totalDays > stayDays && stockPeople < people) {
+          const missing = people - stockPeople;
+          variant = "no_arriba";
+          badge = "Supera l'estada";
+          headline = `Muntatge (${formatDays(totalDays)} dies) > estada (${stayDays} dies)`;
+          detail = `El muntatge (${formatDays(totalDays)} dies) supera l'estada de ${stayDays} dies (termini: ${maxDays} dies). L'estoc desplegat allotja ${stockPeople} de ${people} persones; falten ${missing}.`;
         } else if (stockPeople < people) {
           const missing = people - stockPeople;
           variant = "amb_estoc";
@@ -344,7 +603,7 @@ const initialBanner = getBannerState(
             stockPeople === 0
               ? `Sense estoc a la zona · falten ${missing} persones`
               : `Estoc per a ${stockPeople} de ${people} persones`;
-          detail = `Dins del pressupost (queden lliures ${formatEur(budget - totalCost)}). Falten ${missing} persones per allotjar amb nous mòduls.`;
+          detail = `Dins del pressupost (queden lliures ${formatEur(budget - totalCost)}), termini (${maxDays} dies) i estada (${stayDays} dies). Falten ${missing} persones per allotjar amb nous mòduls.`;
         }
 
         el("budgetBanner").className = `banner banner-${variant}`;
@@ -356,6 +615,14 @@ const initialBanner = getBannerState(
 
       function renderCost() {
         const people = Math.max(0, Number(el("personasAfectadas").value) || 0);
+        const stayDays = Math.max(
+          1,
+          Number(el("duracionEstanciaDias").value) || 1,
+        );
+        const maxDays = Math.max(
+          1,
+          Number(el("plazoMaximoDias").value) || 1,
+        );
         const budget = Math.max(
           0,
           Number(el("presupuestoTotalEur").value) || 0,
@@ -383,20 +650,41 @@ const initialBanner = getBannerState(
         const costA = getCostModulesA(people, percentA);
         const costB = getCostModulesB(people, percentA);
         const totalCost = getTotalCost(people, percentA);
+        const daysA = getDaysModulesA(people, percentA);
+        const daysB = getDaysModulesB(people, percentA);
+        const totalDays = getTotalDays(people, percentA);
+        const perPerson = people > 0 ? totalCost / people : 0;
+        const perPersonNight = perPerson / stayDays;
 
-        renderBanner(people, budget, totalCost, stockPeople);
+        renderBanner(
+          people,
+          budget,
+          totalCost,
+          stockPeople,
+          stayDays,
+          maxDays,
+          totalDays,
+        );
 
         el("totalCostVal").textContent = formatEur(totalCost);
         el("totalCostSub").textContent =
           `${formatNum(modulesA + modulesB)} mòduls totals`;
 
+        el("perPersonVal").textContent = formatEur(perPerson);
+        el("perPersonSub").textContent =
+          `${formatEur(perPersonNight)} per persona i nit`;
+
+        el("totalDaysVal").textContent = `${formatDays(totalDays)} dies`;
+        el("totalDaysSub").textContent =
+          `${totalDays > maxDays ? "fora" : "dins"} termini (${maxDays}d) · ${totalDays > stayDays ? "fora" : "dins"} estada (${stayDays}d)`;
+
         el("costAVal").textContent = formatEur(costA);
         el("modulesASub").textContent =
-          `${formatNum(modulesA)} mòduls (${percentA}%)`;
+          `${formatNum(modulesA)} mòduls (${percentA}%) · ${formatDays(daysA)} dies`;
 
         el("costBVal").textContent = formatEur(costB);
         el("modulesBSub").textContent =
-          `${formatNum(modulesB)} mòduls (${percentB}%)`;
+          `${formatNum(modulesB)} mòduls (${percentB}%) · ${formatDays(daysB)} dies`;
       }
 
       function renderKit(escenarioId) {
@@ -445,6 +733,21 @@ const initialBanner = getBannerState(
       el("presupuestoTotalEur").addEventListener("input", renderCost);
       el("stockModulos").addEventListener("input", renderCost);
       el("percentModulesA").addEventListener("input", renderCost);
+
+      function switchTab(activeTab) {
+        const isDashboard = activeTab === "dashboard";
+        el("panelDashboard").hidden = !isDashboard;
+        el("panelFormulas").hidden = isDashboard;
+        el("tabDashboard").classList.toggle("is-active", isDashboard);
+        el("tabFormulas").classList.toggle("is-active", !isDashboard);
+        el("tabDashboard").setAttribute("aria-selected", String(isDashboard));
+        el("tabFormulas").setAttribute("aria-selected", String(!isDashboard));
+      }
+
+      el("tabDashboard").addEventListener("click", () =>
+        switchTab("dashboard"),
+      );
+      el("tabFormulas").addEventListener("click", () => switchTab("formulas"));
     </script>
   </body>
 </html>

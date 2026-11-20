@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   getCases,
+  getCostPerPerson,
   getDaysModulesA,
   getDaysModulesB,
   getKitForScenario,
@@ -117,9 +118,15 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
     });
   });
 
-  it("getDaysModulesA, getDaysModulesB i getTotalDays calculen els dies de muntatge", () => {
-    assert.equal(getDaysModulesA(160, 50), 20 * 3.6);
-    assert.equal(getDaysModulesB(160, 50), 20 * 3.1);
-    assert.equal(getTotalDays(160, 50), 20 * 3.6 + 20 * 3.1);
+  it("getDaysModulesA, getDaysModulesB i getTotalDays calculen els dies amb equips en paral·lel", () => {
+    assert.equal(getDaysModulesA(160, 50), (20 * 3.6) / 10);
+    assert.equal(getDaysModulesB(160, 50), (20 * 3.1) / 10);
+    assert.equal(getTotalDays(160, 50), (20 * 3.6 + 20 * 3.1) / 10);
+  });
+
+  it("getCostPerPerson calcula el cost per persona i per nit d'estada", () => {
+    const { perPerson, perPersonNight } = getCostPerPerson(160, 0, 30);
+    assert.equal(perPerson, (40 * 27400) / 160);
+    assert.equal(perPersonNight, perPerson / 30);
   });
 });
