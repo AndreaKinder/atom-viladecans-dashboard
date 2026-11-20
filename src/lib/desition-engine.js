@@ -188,3 +188,17 @@ export function getTotalCost(people, percentModulesA) {
     getCostModulesB(people, percentModulesA)
   );
 }
+
+export function getStockCoverage(people, stockModules) {
+  const safePeople = Math.max(0, Number(people) || 0);
+  const safeStock = Math.max(0, Number(stockModules) || 0);
+  const stockPeople = Math.min(
+    safePeople,
+    safeStock * PROPORTIONS_FACTORS.common.capacity,
+  );
+  return {
+    stockModules: safeStock,
+    stockPeople,
+    remainingPeople: Math.max(0, safePeople - stockPeople),
+  };
+}

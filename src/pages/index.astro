@@ -8,6 +8,7 @@ import {
   getModuleMixFromRedPct,
   getNumberModuleAByPercent,
   getNumberModuleBByPercent,
+  getStockCoverage,
   getTotalCost,
   inputLabels,
   KITS,
@@ -47,10 +48,50 @@ const initialCostB = getCostModulesB(
   initialPercentA,
 );
 const initialBudget = initialInput.presupuestoTotalEur;
-const initialOverBudget = initialTotalCost > initialBudget;
-
+const DEFAULT_STOCK_MODULES = 4;
+const initialStock = getStockCoverage(
+  initialInput.personasAfectadas,
+  DEFAULT_STOCK_MODULES,
+);
 const formatEur = (val) =>
   `${Math.round(val).toLocaleString("ca-ES")} €`;
+
+function getBannerState(people, budget, totalCost, stockPeople) {
+  if (totalCost > budget) {
+    return {
+      variant: "no_arriba",
+      badge: "Supera el pressupost",
+      headline: `Excedeix en ${formatEur(totalCost - budget)}`,
+      detail: `El cost calculat (${formatEur(totalCost)}) supera el pressupost de ${formatEur(budget)}. L'estoc desplegat allotja ${stockPeople} de ${people} persones.`,
+    };
+  }
+  const freeBudget = formatEur(budget - totalCost);
+  if (stockPeople < people) {
+    const missing = people - stockPeople;
+    return {
+      variant: "amb_estoc",
+      badge: "Cobertura parcial",
+      headline:
+        stockPeople === 0
+          ? `Sense estoc a la zona · falten ${missing} persones`
+          : `Estoc per a ${stockPeople} de ${people} persones`,
+      detail: `Dins del pressupost (queden lliures ${freeBudget}). Falten ${missing} persones per allotjar amb nous mòduls.`,
+    };
+  }
+  return {
+    variant: "viable",
+    badge: "Cobertura completa",
+    headline: `Queden lliures ${freeBudget}`,
+    detail: `Dins del pressupost de ${formatEur(budget)}. L'estoc desplegat allotja totes les ${people} persones.`,
+  };
+}
+
+const initialBanner = getBannerState(
+  initialInput.personasAfectadas,
+  initialBudget,
+  initialTotalCost,
+  initialStock.stockPeople,
+);
 ---
 
 <!doctype html>
@@ -117,6 +158,17 @@ const formatEur = (val) =>
           </div>
 
           <div class="field">
+            <label for="stockModulos">Mòduls-refugi a la zona</label>
+            <input
+              id="stockModulos"
+              type="number"
+              min="0"
+              step="1"
+              value={DEFAULT_STOCK_MODULES}
+            />
+          </div>
+
+          <div class="field">
             <label for="percentModulesA">
               Mòduls autosuficients A (<span id="percentModulesAVal">{initialPercentA}</span>%)
             </label>
@@ -138,29 +190,19 @@ const formatEur = (val) =>
         <section>
           <div
             id="budgetBanner"
-            class={`banner ${initialOverBudget ? "banner-no_arriba" : "banner-viable"}`}
+            class={`banner banner-${initialBanner.variant}`}
           >
             <div>
               <span
                 id="budgetBadge"
-                class={`badge ${initialOverBudget ? "badge-no_arriba" : "badge-viable"}`}
+                class={`badge badge-${initialBanner.variant}`}
               >
-                {initialOverBudget ? "Supera el pressupost" : "Dins del pressupost"}
+                {initialBanner.badge}
               </span>
-              <strong id="budgetHeadline">
-                {
-                  initialOverBudget
-                    ? `Excedeix en ${formatEur(initialTotalCost - initialBudget)}`
-                    : `Queden lliures ${formatEur(initialBudget - initialTotalCost)}`
-                }
-              </strong>
+              <strong id="budgetHeadline">{initialBanner.headline}</strong>
             </div>
             <div id="budgetDetail" class="banner-detail">
-              {
-                initialOverBudget
-                  ? `El cost calculat (${formatEur(initialTotalCost)}) supera el pressupost de ${formatEur(initialBudget)}.`
-                  : `El cost calculat (${formatEur(initialTotalCost)}) s'ajusta al pressupost de ${formatEur(initialBudget)}.`
-              }
+              {initialBanner.detail}
             </div>
           </div>
 
@@ -255,11 +297,48 @@ const formatEur = (val) =>
         return Number.isInteger(val) ? String(val) : val.toFixed(1);
       }
 
+      function renderBanner(people, budget, totalCost, stockPeople) {
+        let variant = "viable";
+        let badge = "Cobertura completa";
+        let headline = `Queden lliures ${formatEur(budget - totalCost)}`;
+        let detail = `Dins del pressupost de ${formatEur(budget)}. L'estoc desplegat allotja totes les ${people} persones.`;
+
+        if (totalCost > budget) {
+          variant = "no_arriba";
+          badge = "Supera el pressupost";
+          headline = `Excedeix en ${formatEur(totalCost - budget)}`;
+          detail = `El cost calculat (${formatEur(totalCost)}) supera el pressupost de ${formatEur(budget)}. L'estoc desplegat allotja ${stockPeople} de ${people} persones.`;
+        } else if (stockPeople < people) {
+          const missing = people - stockPeople;
+          variant = "amb_estoc";
+          badge = "Cobertura parcial";
+          headline =
+            stockPeople === 0
+              ? `Sense estoc a la zona · falten ${missing} persones`
+              : `Estoc per a ${stockPeople} de ${people} persones`;
+          detail = `Dins del pressupost (queden lliures ${formatEur(budget - totalCost)}). Falten ${missing} persones per allotjar amb nous mòduls.`;
+        }
+
+        el("budgetBanner").className = `banner banner-${variant}`;
+        el("budgetBadge").className = `badge badge-${variant}`;
+        el("budgetBadge").textContent = badge;
+        el("budgetHeadline").textContent = headline;
+        el("budgetDetail").textContent = detail;
+      }
+
       function renderCost() {
         const people = Math.max(0, Number(el("personasAfectadas").value) || 0);
         const budget = Math.max(
           0,
           Number(el("presupuestoTotalEur").value) || 0,
+        );
+        const stockModules = Math.max(
+          0,
+          Number(el("stockModulos").value) || 0,
+        );
+        const stockPeople = Math.min(
+          people,
+          stockModules * PROPORTIONS_FACTORS.common.capacity,
         );
         const percentA = Math.min(
           100,
@@ -277,20 +356,7 @@ const formatEur = (val) =>
         const costB = getCostModulesB(people, percentA);
         const totalCost = getTotalCost(people, percentA);
 
-        const overBudget = totalCost > budget;
-        el("budgetBanner").className =
-          `banner ${overBudget ? "banner-no_arriba" : "banner-viable"}`;
-        el("budgetBadge").className =
-          `badge ${overBudget ? "badge-no_arriba" : "badge-viable"}`;
-        el("budgetBadge").textContent = overBudget
-          ? "Supera el pressupost"
-          : "Dins del pressupost";
-        el("budgetHeadline").textContent = overBudget
-          ? `Excedeix en ${formatEur(totalCost - budget)}`
-          : `Queden lliures ${formatEur(budget - totalCost)}`;
-        el("budgetDetail").textContent = overBudget
-          ? `El cost calculat (${formatEur(totalCost)}) supera el pressupost de ${formatEur(budget)}.`
-          : `El cost calculat (${formatEur(totalCost)}) s'ajusta al pressupost de ${formatEur(budget)}.`;
+        renderBanner(people, budget, totalCost, stockPeople);
 
         el("totalCostVal").textContent = formatEur(totalCost);
         el("totalCostSub").textContent =
@@ -345,6 +411,7 @@ const formatEur = (val) =>
 
       el("personasAfectadas").addEventListener("input", renderCost);
       el("presupuestoTotalEur").addEventListener("input", renderCost);
+      el("stockModulos").addEventListener("input", renderCost);
       el("percentModulesA").addEventListener("input", renderCost);
     </script>
   </body>

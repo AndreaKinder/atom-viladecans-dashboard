@@ -5,6 +5,7 @@ import {
   getKitForScenario,
   getModuleMixForGrid,
   getModuleMixFromRedPct,
+  getStockCoverage,
   getTotalCost,
   inputLabels,
   KITS,
@@ -96,6 +97,19 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
     assert.deepEqual(getModuleMixFromRedPct(50), {
       percentModulesA: 50,
       percentModulesB: 50,
+    });
+  });
+
+  it("getStockCoverage calcula persones allotjades amb mòduls-refugi a la zona", () => {
+    assert.deepEqual(getStockCoverage(160, 4), {
+      stockModules: 4,
+      stockPeople: 16,
+      remainingPeople: 144,
+    });
+    assert.deepEqual(getStockCoverage(12, 4), {
+      stockModules: 4,
+      stockPeople: 12,
+      remainingPeople: 0,
     });
   });
 });
