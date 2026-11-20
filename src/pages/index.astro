@@ -1,10 +1,11 @@
 ---
 import "../styles/index.css";
 import {
-  evaluateScenario,
   getCases,
+  getKitForScenario,
   inputLabels,
-  outputLabels,
+  KITS,
+  SCENARIO_KIT,
   snarioLabels,
 } from "../lib/desition-engine.js";
 
@@ -13,22 +14,8 @@ const SCENARIO_LABELS = snarioLabels;
 // 60 casos d'emergència del dataset
 const CASES = getCases();
 const defaultCase = CASES.find((c) => c.id === "EM059") ?? CASES[0];
-
 const initialInput = { ...defaultCase.input };
-
-const initialResult = evaluateScenario(initialInput);
-
-const fmt = (val, dec = 0) =>
-  val.toLocaleString("ca-ES", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  });
-
-const badgeMap = {
-  viable: outputLabels.Veredicto.viable,
-  amb_estoc: outputLabels.Veredicto.ambEstoc,
-  no_arriba: outputLabels.Veredicto.noArriba,
-};
+const initialKit = getKitForScenario(initialInput.escenarioId);
 ---
 
 <!doctype html>
@@ -71,262 +58,63 @@ const badgeMap = {
               }
             </select>
           </div>
-
-          <div class="grid-2">
-            <div class="field">
-              <label for="personasAfectadas">{inputLabels.Personas}</label>
-              <input id="personasAfectadas" type="number" min="1" max="2000" step="4" value={initialInput.personasAfectadas} />
-            </div>
-            <div class="field">
-              <label for="plazoMaximoDias">{inputLabels.Termino}</label>
-              <input id="plazoMaximoDias" type="number" min="0.5" max="30" step="0.5" value={initialInput.plazoMaximoDias} />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="presupuestoTotalEur">{inputLabels.Presupuesto}</label>
-            <input id="presupuestoTotalEur" type="number" min="10000" max="50000000" step="10000" value={initialInput.presupuestoTotalEur} />
-          </div>
-
-          <div class="field">
-            <label for="pctConexionRed">
-              {inputLabels.PorcentajeRed}: <strong id="pctRedValue">{initialInput.pctConexionRed}%</strong>
-            </label>
-            <input id="pctConexionRed" type="range" min="0" max="100" step="5" value={initialInput.pctConexionRed} />
-            <div class="hint">
-              <span>0% = sense xarxa</span>
-              <span>100% = tots connectats</span>
-            </div>
-          </div>
         </aside>
 
         <section>
-          <div id="banner" class={`banner banner-${initialResult.veredicto}`}>
-            <div>
-              <span id="bannerBadge" class={`badge badge-${initialResult.veredicto}`}>
-                {badgeMap[initialResult.veredicto]}
+          <div class="card">
+            <div class="kit-header">
+              <span
+                id="kitBadge"
+                class={`kit-badge kit-badge-${initialKit.id}`}
+              >
+                {initialKit.badge}
               </span>
-              <strong id="bannerTitle">{initialResult.veredictoTitulo}</strong>
-            </div>
-            <div id="bannerDetail" class="banner-detail">{initialResult.veredictoDetalle}</div>
-          </div>
-
-          <div class="kpis">
-            <div class="kpi">
-              <div class="kpi-label">{outputLabels.Coste}</div>
-              <div id="kpiCostTotal" class="kpi-val">{fmt(initialResult.costeTotalEur)} €</div>
-              <div id="kpiCostPct" class="kpi-sub">{fmt(initialResult.pctPresupuesto, 1)}% del pressupost</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">{outputLabels.CO2}</div>
-              <div id="kpiCo2" class="kpi-val">{fmt(initialResult.co2TotalT, 1)} t</div>
-              <div id="kpiCo2Pers" class="kpi-sub">{fmt(initialResult.co2PorPersonaKg)} kg per persona</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">{outputLabels.ModulosA}</div>
-              <div id="kpiModA" class="kpi-val">{initialResult.configA?.count ?? 0}</div>
-              <div class="kpi-sub">Autosuficients</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">{outputLabels.ModulosB}</div>
-              <div id="kpiModB" class="kpi-val">{initialResult.configB?.count ?? 0}</div>
-              <div class="kpi-sub">Amb xarxa</div>
-            </div>
-          </div>
-
-          <div class="mid-grid">
-            <div class="card">
-              <div class="section-title">{outputLabels.ModulosA} / {outputLabels.ModulosB}</div>
-              <div class="stacked-bar">
-                <div
-                  id="barA"
-                  class="bar-a"
-                  style={`width: ${((initialResult.configA?.count ?? 0) / initialResult.totalModulos) * 100}%`}
-                ></div>
-                <div
-                  id="barB"
-                  class="bar-b"
-                  style={`width: ${((initialResult.configB?.count ?? 0) / initialResult.totalModulos) * 100}%`}
-                ></div>
-              </div>
-              <div id="mixDetails">
-                {
-                  initialResult.configA && (
-                    <div class="mix-row">
-                      <span class="dot" style="background: var(--teal)"></span>
-                      <span>
-                        <strong>{outputLabels.ModulosA} ({initialResult.configA.configId}):</strong>{" "}
-                        {initialResult.configA.count} ({fmt(initialResult.configA.costeSubtotalEur)} €)
-                      </span>
-                    </div>
-                  )
-                }
-                {
-                  initialResult.configB && (
-                    <div class="mix-row">
-                      <span class="dot" style="background: var(--amber)"></span>
-                      <span>
-                        <strong>{outputLabels.ModulosB} ({initialResult.configB.configId}):</strong>{" "}
-                        {initialResult.configB.count} ({fmt(initialResult.configB.costeSubtotalEur)} €)
-                      </span>
-                    </div>
-                  )
-                }
-              </div>
+              <div id="kitTitle" class="section-title">{initialKit.nom}</div>
             </div>
 
-            <div class="card">
-              {
-                (() => {
-                  const primary = initialResult.configA ?? initialResult.configB;
-                  const kit = initialResult.kit;
-                  return (
-                    <>
-                      <div class="kit-header">
-                        <span id="kitBadge" class={`kit-badge kit-badge-${kit.id}`}>{kit.inicial}</span>
-                        <div>
-                          <div id="kitTitle" class="section-title">{outputLabels.KitRecomendado}: {kit.nombre}</div>
-                          <div id="kitSubtitle" class="kpi-sub">
-                            {SCENARIO_LABELS[initialInput.escenarioId]} · {kit.subtitulo}
-                          </div>
-                        </div>
-                      </div>
-                      <ul id="kitMaterials" class="kit-list">
-                        {kit.materiales.map((item) => (
-                          <li>{item}</li>
-                        ))}
-                      </ul>
-                      <div id="kitKpis" class="kit-kpis">
-                        {kit.kpis.map((k) => (
-                          <div class={`kit-kpi kit-kpi-${kit.id}`}>
-                            <div class="kit-kpi-val">{k.valor}</div>
-                            <div class="kit-kpi-txt">{k.texto}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div id="kitEnergy" class="kpi-sub">
-                        {outputLabels.Energia}: {primary.pvM2} m² FV · {primary.bateriaKwh} kWh bateria
-                        {primary.climatizacionKw != null && ` · ${primary.climatizacionKw} kW`}
-                      </div>
-                    </>
-                  );
-                })()
-              }
-            </div>
+            <ul id="kitList" class="kit-list">
+              {initialKit.components.map((item) => <li>{item}</li>)}
+            </ul>
           </div>
         </section>
       </div>
     </main>
 
-    <script define:vars={{ SCENARIO_LABELS, outputLabels, CASES }}>
-      const badgeMap = {
-        viable: outputLabels.Veredicto.viable,
-        amb_estoc: outputLabels.Veredicto.ambEstoc,
-        no_arriba: outputLabels.Veredicto.noArriba,
-      };
-
+    <script define:vars={{ CASES, KITS, SCENARIO_KIT }}>
       const el = (id) => document.getElementById(id);
-      const fmt = (val, dec = 0) =>
-        Number(val).toLocaleString("ca-ES", {
-          minimumFractionDigits: dec,
-          maximumFractionDigits: dec,
-        });
 
-      const fields = [
-        "escenarioId",
-        "personasAfectadas",
-        "plazoMaximoDias",
-        "presupuestoTotalEur",
-        "pctConexionRed",
-      ];
+      function renderKit(escenarioId) {
+        const kitKey = SCENARIO_KIT[escenarioId] ?? "calor";
+        const kit = KITS[kitKey];
+        if (!kit) return;
 
-      function readInput() {
-        return {
-          escenarioId: el("escenarioId").value,
-          personasAfectadas: Number(el("personasAfectadas").value),
-          plazoMaximoDias: Number(el("plazoMaximoDias").value),
-          presupuestoTotalEur: Number(el("presupuestoTotalEur").value),
-          pctConexionRed: Number(el("pctConexionRed").value),
-        };
+        const badge = el("kitBadge");
+        badge.textContent = kit.badge;
+        badge.className = `kit-badge kit-badge-${kit.id}`;
+
+        el("kitTitle").textContent = kit.nom;
+
+        const list = el("kitList");
+        list.replaceChildren(
+          ...kit.components.map((item) => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            return li;
+          }),
+        );
       }
 
-      function renderResult(res, input) {
-        const banner = el("banner");
-        banner.className = `banner banner-${res.veredicto}`;
-        const badge = el("bannerBadge");
-        badge.className = `badge badge-${res.veredicto}`;
-        badge.textContent = badgeMap[res.veredicto];
-        el("bannerTitle").textContent = res.veredictoTitulo;
-        el("bannerDetail").textContent = res.veredictoDetalle;
-
-        el("kpiCostTotal").textContent = `${fmt(res.costeTotalEur)} €`;
-        el("kpiCostPct").textContent = `${fmt(res.pctPresupuesto, 1)}% del pressupost`;
-        el("kpiCo2").textContent = `${fmt(res.co2TotalT, 1)} t`;
-        el("kpiCo2Pers").textContent = `${fmt(res.co2PorPersonaKg)} kg per persona`;
-
-        const cntA = res.configA ? res.configA.count : 0;
-        const cntB = res.configB ? res.configB.count : 0;
-        el("kpiModA").textContent = String(cntA);
-        el("kpiModB").textContent = String(cntB);
-        el("barA").style.width = `${(cntA / res.totalModulos) * 100}%`;
-        el("barB").style.width = `${(cntB / res.totalModulos) * 100}%`;
-
-        let mixHtml = "";
-        if (res.configA) {
-          mixHtml += `<div class="mix-row"><span class="dot" style="background: var(--teal)"></span><span><strong>${outputLabels.ModulosA} (${res.configA.configId}):</strong> ${res.configA.count} (${fmt(res.configA.costeSubtotalEur)} €)</span></div>`;
-        }
-        if (res.configB) {
-          mixHtml += `<div class="mix-row"><span class="dot" style="background: var(--amber)"></span><span><strong>${outputLabels.ModulosB} (${res.configB.configId}):</strong> ${res.configB.count} (${fmt(res.configB.costeSubtotalEur)} €)</span></div>`;
-        }
-        el("mixDetails").innerHTML = mixHtml;
-
-        const primary = res.configA ?? res.configB;
-        const kit = res.kit;
-        const badgeKit = el("kitBadge");
-        badgeKit.className = `kit-badge kit-badge-${kit.id}`;
-        badgeKit.textContent = kit.inicial;
-        el("kitTitle").textContent = `${outputLabels.KitRecomendado}: ${kit.nombre}`;
-        el("kitSubtitle").textContent = `${SCENARIO_LABELS[input.escenarioId]} · ${kit.subtitulo}`;
-        el("kitMaterials").innerHTML = kit.materiales
-          .map((item) => `<li>${item}</li>`)
-          .join("");
-        el("kitKpis").innerHTML = kit.kpis
-          .map(
-            (k) =>
-              `<div class="kit-kpi kit-kpi-${kit.id}"><div class="kit-kpi-val">${k.valor}</div><div class="kit-kpi-txt">${k.texto}</div></div>`,
-          )
-          .join("");
-        const clima = primary.climatizacionKw != null ? ` · ${primary.climatizacionKw} kW` : "";
-        el("kitEnergy").textContent = `${outputLabels.Energia}: ${primary.pvM2} m² FV · ${primary.bateriaKwh} kWh bateria${clima}`;
-      }
-
-      async function evaluate() {
-        const input = readInput();
-        el("pctRedValue").textContent = `${input.pctConexionRed}%`;
-        const resp = await fetch("/api/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          renderResult(data, input);
-        }
-      }
-
-      for (const id of fields) {
-        el(id).addEventListener("input", evaluate);
-        el(id).addEventListener("change", evaluate);
-      }
-
-      // En triar un cas, s'omplen els camps i es recalcula
+      // En triar un cas, s'actualitza el tipus de clima seleccionat i el kit
       el("casoId").addEventListener("change", () => {
         const caso = CASES.find((c) => c.id === el("casoId").value);
         if (!caso) return;
-        for (const id of fields) {
-          el(id).value = caso.input[id];
-        }
-        evaluate();
+        el("escenarioId").value = caso.input.escenarioId;
+        renderKit(caso.input.escenarioId);
+      });
+
+      // En canviar el clima manualment, també s'actualitza el kit
+      el("escenarioId").addEventListener("change", () => {
+        renderKit(el("escenarioId").value);
       });
     </script>
   </body>
