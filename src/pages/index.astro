@@ -48,6 +48,8 @@ const initialCostB = getCostModulesB(
   initialPercentA,
 );
 const initialBudget = initialInput.presupuestoTotalEur;
+const initialStayDays = initialInput.duracionEstanciaDias;
+const initialMaxDays = initialInput.plazoMaximoDias;
 const DEFAULT_STOCK_MODULES = 4;
 const initialStock = getStockCoverage(
   initialInput.personasAfectadas,
@@ -135,15 +137,52 @@ const initialBanner = getBannerState(
             </select>
           </div>
 
-          <div class="field">
-            <label for="personasAfectadas">Persones afectades</label>
-            <input
-              id="personasAfectadas"
-              type="number"
-              min="0"
-              step="1"
-              value={initialInput.personasAfectadas}
-            />
+          <div class="grid-2">
+            <div class="field">
+              <label for="personasAfectadas">Persones afectades</label>
+              <input
+                id="personasAfectadas"
+                type="number"
+                min="0"
+                step="1"
+                value={initialInput.personasAfectadas}
+              />
+            </div>
+
+            <div class="field">
+              <label for="duracionEstanciaDias">Estada (dies)</label>
+              <input
+                id="duracionEstanciaDias"
+                type="number"
+                min="1"
+                step="1"
+                value={initialStayDays}
+              />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="plazoMaximoDias">Termini màxim (dies)</label>
+              <input
+                id="plazoMaximoDias"
+                type="number"
+                min="1"
+                step="1"
+                value={initialMaxDays}
+              />
+            </div>
+
+            <div class="field">
+              <label for="stockModulos">Mòduls-refugi a la zona</label>
+              <input
+                id="stockModulos"
+                type="number"
+                min="0"
+                step="1"
+                value={DEFAULT_STOCK_MODULES}
+              />
+            </div>
           </div>
 
           <div class="field">
@@ -154,17 +193,6 @@ const initialBanner = getBannerState(
               min="0"
               step="1000"
               value={initialBudget}
-            />
-          </div>
-
-          <div class="field">
-            <label for="stockModulos">Mòduls-refugi a la zona</label>
-            <input
-              id="stockModulos"
-              type="number"
-              min="0"
-              step="1"
-              value={DEFAULT_STOCK_MODULES}
             />
           </div>
 
@@ -392,12 +420,14 @@ const initialBanner = getBannerState(
         );
       }
 
-      // En triar un cas, s'actualitzen clima, persones, pressupost, % i càlculs
+      // En triar un cas, s'actualitzen clima, persones, estada, termini, pressupost, % i càlculs
       el("casoId").addEventListener("change", () => {
         const caso = CASES.find((c) => c.id === el("casoId").value);
         if (!caso) return;
         el("escenarioId").value = caso.input.escenarioId;
         el("personasAfectadas").value = caso.input.personasAfectadas;
+        el("duracionEstanciaDias").value = caso.input.duracionEstanciaDias;
+        el("plazoMaximoDias").value = caso.input.plazoMaximoDias;
         el("presupuestoTotalEur").value = caso.input.presupuestoTotalEur;
         el("percentModulesA").value = 100 - caso.input.pctConexionRed;
         renderKit(caso.input.escenarioId);
@@ -410,6 +440,8 @@ const initialBanner = getBannerState(
       });
 
       el("personasAfectadas").addEventListener("input", renderCost);
+      el("duracionEstanciaDias").addEventListener("input", renderCost);
+      el("plazoMaximoDias").addEventListener("input", renderCost);
       el("presupuestoTotalEur").addEventListener("input", renderCost);
       el("stockModulos").addEventListener("input", renderCost);
       el("percentModulesA").addEventListener("input", renderCost);

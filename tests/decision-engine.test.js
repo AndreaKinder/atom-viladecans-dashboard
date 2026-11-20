@@ -45,6 +45,7 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
     assert.deepEqual(em059.input, {
       escenarioId: "C03",
       personasAfectadas: 160,
+      duracionEstanciaDias: 30,
       plazoMaximoDias: 2,
       presupuestoTotalEur: 1729475,
       pctConexionRed: 50,

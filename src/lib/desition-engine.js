@@ -115,6 +115,7 @@ export function getCases() {
     input: {
       escenarioId: c.escenario_id,
       personasAfectadas: Number(c.personas_afectadas),
+      duracionEstanciaDias: Number(c.duracion_estancia_dias),
       plazoMaximoDias: Number(c.plazo_maximo_montaje_dias),
       presupuestoTotalEur: Number(c.presupuesto_total_eur),
       pctConexionRed: RED_PCT[c.disponibilidad_red] ?? 50,
@@ -187,6 +188,10 @@ export function getTotalCost(people, percentModulesA) {
     getCostModulesA(people, percentModulesA) +
     getCostModulesB(people, percentModulesA)
   );
+}
+
+export function getKDaysModules(daysForModule) {
+  return getPeopleForModule * daysForModule;
 }
 
 export function getStockCoverage(people, stockModules) {
