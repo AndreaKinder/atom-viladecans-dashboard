@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   getCases,
+  getDaysModulesA,
+  getDaysModulesB,
   getKitForScenario,
   getModuleMixForGrid,
   getModuleMixFromRedPct,
   getStockCoverage,
   getTotalCost,
+  getTotalDays,
   inputLabels,
   KITS,
   loadDataset,
@@ -112,5 +115,11 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
       stockPeople: 12,
       remainingPeople: 0,
     });
+  });
+
+  it("getDaysModulesA, getDaysModulesB i getTotalDays calculen els dies de muntatge", () => {
+    assert.equal(getDaysModulesA(160, 50), 20 * 3.6);
+    assert.equal(getDaysModulesB(160, 50), 20 * 3.1);
+    assert.equal(getTotalDays(160, 50), 20 * 3.6 + 20 * 3.1);
   });
 });

@@ -194,6 +194,31 @@ export function getKDaysModules(daysForModule) {
   return getPeopleForModule * daysForModule;
 }
 
+export function getDaysModulesA(people, percentModulesA) {
+  return (
+    (people *
+      getKDaysModules(PROPORTIONS_FACTORS.moduleA.assemblyDays) *
+      percentModulesA) /
+    100
+  );
+}
+
+export function getDaysModulesB(people, percentModulesA) {
+  return (
+    (people *
+      getKDaysModules(PROPORTIONS_FACTORS.moduleB.assemblyDays) *
+      (100 - percentModulesA)) /
+    100
+  );
+}
+
+export function getTotalDays(people, percentModulesA) {
+  return (
+    getDaysModulesA(people, percentModulesA) +
+    getDaysModulesB(people, percentModulesA)
+  );
+}
+
 export function getStockCoverage(people, stockModules) {
   const safePeople = Math.max(0, Number(people) || 0);
   const safeStock = Math.max(0, Number(stockModules) || 0);
