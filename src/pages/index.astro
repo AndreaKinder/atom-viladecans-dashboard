@@ -1,7 +1,11 @@
 ---
 import "../styles/index.css";
 import {
+  getBudgetUsage,
   getCases,
+  getCo2ModulesA,
+  getCo2ModulesB,
+  getCo2PerPerson,
   getCostModulesA,
   getCostModulesB,
   getCostPerPerson,
@@ -12,6 +16,7 @@ import {
   getNumberModuleAByPercent,
   getNumberModuleBByPercent,
   getStockCoverage,
+  getTotalCo2,
   getTotalCost,
   getTotalDays,
   inputLabels,
@@ -76,10 +81,37 @@ const initialPersonCost = getCostPerPerson(
   initialPercentA,
   initialStayDays,
 );
+const initialCo2A = getCo2ModulesA(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialCo2B = getCo2ModulesB(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialTotalCo2 = getTotalCo2(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialPersonCo2 = getCo2PerPerson(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialBudgetUsage = getBudgetUsage(
+  initialInput.personasAfectadas,
+  initialPercentA,
+  initialBudget,
+);
 const formatEur = (val) =>
   `${Math.round(val).toLocaleString("ca-ES")} €`;
 const formatDays = (val) =>
   val.toLocaleString("ca-ES", { maximumFractionDigits: 1 });
+const formatCo2T = (val) =>
+  `${val.toLocaleString("ca-ES", { maximumFractionDigits: 1 })} t`;
+const formatCo2Kg = (val) =>
+  `${Math.round(val).toLocaleString("ca-ES")} kg`;
+const formatPct = (val) =>
+  `${val.toLocaleString("ca-ES", { maximumFractionDigits: 1 })}%`;
 
 function getBannerState(
   people,
@@ -321,6 +353,27 @@ const initialBanner = getBannerState(
             </div>
 
             <div class="kpi">
+              <div class="kpi-label">Pressupost consumit</div>
+              <div id="budgetPctVal" class="kpi-val">
+                {formatPct(initialBudgetUsage.usedPct)}
+              </div>
+              <div class="progress-track">
+                <div
+                  id="budgetProgressFill"
+                  class="progress-fill"
+                  style={`width: ${Math.min(100, Math.max(0, initialBudgetUsage.usedPct))}%`}
+                ></div>
+              </div>
+              <div id="budgetRemainingSub" class="kpi-sub">
+                {
+                  initialBudgetUsage.remainingEur >= 0
+                    ? `${formatEur(initialBudgetUsage.remainingEur)} lliures de ${formatEur(initialBudget)}`
+                    : `Excedeix en ${formatEur(Math.abs(initialBudgetUsage.remainingEur))}`
+                }
+              </div>
+            </div>
+
+            <div class="kpi">
               <div class="kpi-label">Cost per persona</div>
               <div id="perPersonVal" class="kpi-val">
                 {formatEur(initialPersonCost.perPerson)}
@@ -347,7 +400,7 @@ const initialBanner = getBannerState(
               <div id="costAVal" class="kpi-val">{formatEur(initialCostA)}</div>
               <div id="modulesASub" class="kpi-sub">
                 {initialModulesA} mòduls ({initialPercentA}%) ·{" "}
-                {formatDays(initialDaysA)} dies
+                {formatDays(initialDaysA)} dies · {formatCo2T(initialCo2A)} CO₂
               </div>
             </div>
 
@@ -356,7 +409,17 @@ const initialBanner = getBannerState(
               <div id="costBVal" class="kpi-val">{formatEur(initialCostB)}</div>
               <div id="modulesBSub" class="kpi-sub">
                 {initialModulesB} mòduls ({100 - initialPercentA}%) ·{" "}
-                {formatDays(initialDaysB)} dies
+                {formatDays(initialDaysB)} dies · {formatCo2T(initialCo2B)} CO₂
+              </div>
+            </div>
+
+            <div class="kpi">
+              <div class="kpi-label">CO₂ incorporat</div>
+              <div id="totalCo2Val" class="kpi-val">
+                {formatCo2T(initialTotalCo2)} CO₂
+              </div>
+              <div id="perPersonCo2Sub" class="kpi-sub">
+                {formatCo2Kg(initialPersonCo2.perPersonKg)} CO₂ per persona
               </div>
             </div>
           </div>
@@ -369,7 +432,21 @@ const initialBanner = getBannerState(
               >
                 {initialKit.badge}
               </span>
-              <div id="kitTitle" class="section-title">{initialKit.nom}</div>
+              <div>
+                <div id="kitTitle" class="section-title">{initialKit.nom}</div>
+                <div id="kitSubtitle" class="ab-sub">{initialKit.subtitol}</div>
+              </div>
+            </div>
+
+            <div id="kitKpis" class="kit-kpis">
+              {
+                initialKit.kpis.map((kpi) => (
+                  <div class={`kit-kpi kit-kpi-${initialKit.id}`}>
+                    <div class="kit-kpi-val">{kpi.val}</div>
+                    <div class="kit-kpi-txt">{kpi.txt}</div>
+                  </div>
+                ))
+              }
             </div>
 
             <ul id="kitList" class="kit-list">
@@ -403,6 +480,8 @@ const initialBanner = getBannerState(
               <strong>27.400 €</strong> (fabricat i instal·lat):
               <div class="formula-box">
                 Cost total = (Mòduls A × 33.530 €) + (Mòduls B × 27.400 €)<br />
+                % del pressupost = (Cost total ÷ Pressupost disponible) × 100<br />
+                Pressupost lliure = Pressupost disponible − Cost total<br />
                 Cost per persona = Cost total ÷ Persones afectades<br />
                 Cost per persona i nit = Cost per persona ÷ Dies d'estada{" "}
                 <em>(pendent de revisar)</em>
@@ -473,8 +552,20 @@ const initialBanner = getBannerState(
               <strong>6. Quin kit climàtic es tria?</strong> Tots els mòduls
               comparteixen el mateix xassís de fusta de 22 m², i segons el clima
               s'equipa el <strong>Kit Calor</strong> (onada de calor costanera,
-              d'interior o post-tempesta humida) o el{" "}
-              <strong>Kit Fred</strong> (fred continental).
+              d'interior o post-tempesta humida; estalvi de refrigeració del{" "}
+              <strong>−20 %</strong> i confort tèrmic a{" "}
+              <strong>25,6 °C · 55 % humitat</strong>) o el{" "}
+              <strong>Kit Fred</strong> (fred continental; demanda de
+              calefacció de <strong>0 kWh a 22,6 °C</strong>).
+            </li>
+            <li>
+              <strong>7. CO₂ incorporat (total i per persona):</strong> Cada
+              mòdul A incorpora <strong>13,3 t</strong> de CO₂ i cada mòdul B
+              incorpora <strong>11,5 t</strong>:
+              <div class="formula-box">
+                CO₂ total (t) = (Mòduls A × 13,3 t) + (Mòduls B × 11,5 t)<br />
+                CO₂ per persona (kg) = (CO₂ total × 1.000) ÷ Persones afectades
+              </div>
             </li>
           </ul>
         </div>
@@ -485,41 +576,15 @@ const initialBanner = getBannerState(
           </div>
           <ul class="kit-list">
             <li>
-              <strong>1. CO₂ incorporat (total i per persona)</strong>{" "}
-              <em>(pendent)</em>: Cada mòdul A incorpora{" "}
-              <strong>13,3 t</strong> de CO₂ i cada mòdul B incorpora{" "}
-              <strong>11,5 t</strong>:
-              <div class="formula-box">
-                CO₂ total (t) = (Mòduls A × 13,3 t) + (Mòduls B × 11,5 t)<br />
-                CO₂ per persona (kg) = (CO₂ total × 1.000) ÷ Persones afectades
-              </div>
-            </li>
-            <li>
-              <strong>2. Percentatge del pressupost i romanent</strong>{" "}
-              <em>(pendent)</em>: Proporció del pressupost consumida pel
-              desplegament i marge lliure per a logística i operació:
-              <div class="formula-box">
-                % del pressupost = (Cost total ÷ Pressupost disponible) × 100
-                <br />
-                Pressupost lliure = Pressupost disponible − Cost total
-              </div>
-            </li>
-            <li>
               <strong>
-                3. Barra visual de repartiment i fitxes dels mòduls A i B
+                1. Barra visual de repartiment i fitxes dels mòduls A i B
               </strong>{" "}
               <em>(pendent)</em>: Barra apilada amb la proporció entre mòduls A
               i B, i targetes inferiors amb els valors unitaris de cada mòdul
               (cost, dies de muntatge i CO₂ incorporat).
             </li>
             <li>
-              <strong>4. Indicadors tèrmics i energètics del Kit</strong>{" "}
-              <em>(pendent)</em>: Estalvi de refrigeració (−20 %) i confort
-              tèrmic (25,6 °C · 55 % humitat) per al Kit Calor; demanda de
-              calefacció (0 kWh a 22,6 °C) per al Kit Fred.
-            </li>
-            <li>
-              <strong>5. Accés de camió i prioritat del cas</strong>{" "}
+              <strong>2. Accés de camió i prioritat del cas</strong>{" "}
               <em>(pendent)</em>: Camps del dataset per filtrar o condicionar el
               desplegament segons l'accés logístic (normal o limitat) i el
               requisit prioritari (rapidesa, confort, cost, emissions o
@@ -597,6 +662,27 @@ const initialBanner = getBannerState(
         );
       }
 
+      function getCo2ModulesA(people, percentModulesA) {
+        return (
+          getNumberModuleAByPercent(people, percentModulesA) *
+          PROPORTIONS_FACTORS.moduleA.co2T
+        );
+      }
+
+      function getCo2ModulesB(people, percentModulesA) {
+        return (
+          getNumberModuleBByPercent(people, percentModulesA) *
+          PROPORTIONS_FACTORS.moduleB.co2T
+        );
+      }
+
+      function getTotalCo2(people, percentModulesA) {
+        return (
+          getCo2ModulesA(people, percentModulesA) +
+          getCo2ModulesB(people, percentModulesA)
+        );
+      }
+
       function formatEur(val) {
         return `${Math.round(val).toLocaleString("ca-ES")} €`;
       }
@@ -607,6 +693,18 @@ const initialBanner = getBannerState(
 
       function formatDays(val) {
         return val.toLocaleString("ca-ES", { maximumFractionDigits: 1 });
+      }
+
+      function formatCo2T(val) {
+        return `${val.toLocaleString("ca-ES", { maximumFractionDigits: 1 })} t`;
+      }
+
+      function formatCo2Kg(val) {
+        return `${Math.round(val).toLocaleString("ca-ES")} kg`;
+      }
+
+      function formatPct(val) {
+        return `${val.toLocaleString("ca-ES", { maximumFractionDigits: 1 })}%`;
       }
 
       function renderBanner(
@@ -702,8 +800,14 @@ const initialBanner = getBannerState(
         const daysA = getDaysModulesA(people, percentA);
         const daysB = getDaysModulesB(people, percentA);
         const totalDays = getTotalDays(people, percentA);
+        const co2A = getCo2ModulesA(people, percentA);
+        const co2B = getCo2ModulesB(people, percentA);
+        const totalCo2 = getTotalCo2(people, percentA);
+        const perPersonCo2Kg = people > 0 ? (totalCo2 * 1000) / people : 0;
         const perPerson = people > 0 ? totalCost / people : 0;
         const perPersonNight = perPerson / stayDays;
+        const usedPct = budget > 0 ? (totalCost / budget) * 100 : 0;
+        const remainingEur = budget - totalCost;
 
         renderBanner(
           people,
@@ -719,6 +823,14 @@ const initialBanner = getBannerState(
         el("totalCostSub").textContent =
           `${formatNum(modulesA + modulesB)} mòduls totals`;
 
+        el("budgetPctVal").textContent = formatPct(usedPct);
+        el("budgetProgressFill").style.width =
+          `${Math.min(100, Math.max(0, usedPct))}%`;
+        el("budgetRemainingSub").textContent =
+          remainingEur >= 0
+            ? `${formatEur(remainingEur)} lliures de ${formatEur(budget)}`
+            : `Excedeix en ${formatEur(Math.abs(remainingEur))}`;
+
         el("perPersonVal").textContent = formatEur(perPerson);
         el("perPersonSub").textContent =
           `${formatEur(perPersonNight)} per persona i nit`;
@@ -729,11 +841,15 @@ const initialBanner = getBannerState(
 
         el("costAVal").textContent = formatEur(costA);
         el("modulesASub").textContent =
-          `${formatNum(modulesA)} mòduls (${percentA}%) · ${formatDays(daysA)} dies`;
+          `${formatNum(modulesA)} mòduls (${percentA}%) · ${formatDays(daysA)} dies · ${formatCo2T(co2A)} CO₂`;
 
         el("costBVal").textContent = formatEur(costB);
         el("modulesBSub").textContent =
-          `${formatNum(modulesB)} mòduls (${percentB}%) · ${formatDays(daysB)} dies`;
+          `${formatNum(modulesB)} mòduls (${percentB}%) · ${formatDays(daysB)} dies · ${formatCo2T(co2B)} CO₂`;
+
+        el("totalCo2Val").textContent = `${formatCo2T(totalCo2)} CO₂`;
+        el("perPersonCo2Sub").textContent =
+          `${formatCo2Kg(perPersonCo2Kg)} CO₂ per persona`;
       }
 
       function renderKit(escenarioId) {
@@ -746,6 +862,23 @@ const initialBanner = getBannerState(
         badge.className = `kit-badge kit-badge-${kit.id}`;
 
         el("kitTitle").textContent = kit.nom;
+        el("kitSubtitle").textContent = kit.subtitol;
+
+        const kpis = el("kitKpis");
+        kpis.replaceChildren(
+          ...kit.kpis.map((kpi) => {
+            const box = document.createElement("div");
+            box.className = `kit-kpi kit-kpi-${kit.id}`;
+            const val = document.createElement("div");
+            val.className = "kit-kpi-val";
+            val.textContent = kpi.val;
+            const txt = document.createElement("div");
+            txt.className = "kit-kpi-txt";
+            txt.textContent = kpi.txt;
+            box.append(val, txt);
+            return box;
+          }),
+        );
 
         const list = el("kitList");
         list.replaceChildren(

@@ -63,6 +63,16 @@ export const KITS = {
     nom: "Kit Calor",
     subtitol: "Costa càlida · interior sec · calor humida",
     escenaris: ["C01", "C02", "C04"],
+    kpis: [
+      {
+        val: "−20 %",
+        txt: "Estalvi de refrigeració",
+      },
+      {
+        val: "25,6 °C · 55 %",
+        txt: "Confort tèrmic i humitat interior",
+      },
+    ],
     components: [
       "Coberta i façana de color clar (absortància 0,2)",
       "Vidre de control solar",
@@ -76,6 +86,12 @@ export const KITS = {
     nom: "Kit Fred",
     subtitol: "Onada de fred",
     escenaris: ["C03"],
+    kpis: [
+      {
+        val: "0 kWh",
+        txt: "Demanda de calefacció a 22,6 °C",
+      },
+    ],
     components: [
       "Vidre baix emissiu (g 0,50) per captar sol",
       "Persiana exterior: oberta de dia, tancada de nit",
@@ -242,5 +258,47 @@ export function getStockCoverage(people, stockModules) {
     stockModules: safeStock,
     stockPeople,
     remainingPeople: Math.max(0, safePeople - stockPeople),
+  };
+}
+
+export function getCo2ModulesA(people, percentModulesA) {
+  return (
+    getNumberModuleAByPercent(people, percentModulesA) *
+    PROPORTIONS_FACTORS.moduleA.co2T
+  );
+}
+
+export function getCo2ModulesB(people, percentModulesA) {
+  return (
+    getNumberModuleBByPercent(people, percentModulesA) *
+    PROPORTIONS_FACTORS.moduleB.co2T
+  );
+}
+
+export function getTotalCo2(people, percentModulesA) {
+  return (
+    getCo2ModulesA(people, percentModulesA) +
+    getCo2ModulesB(people, percentModulesA)
+  );
+}
+
+export function getCo2PerPerson(people, percentModulesA) {
+  const safePeople = Math.max(0, Number(people) || 0);
+  const totalCo2T = getTotalCo2(safePeople, percentModulesA);
+  const perPersonKg = safePeople > 0 ? (totalCo2T * 1000) / safePeople : 0;
+  return { totalCo2T, perPersonKg };
+}
+
+export function getBudgetUsage(people, percentModulesA, budgetEur) {
+  const safePeople = Math.max(0, Number(people) || 0);
+  const safeBudget = Math.max(0, Number(budgetEur) || 0);
+  const totalCost = getTotalCost(safePeople, percentModulesA);
+  const usedPct = safeBudget > 0 ? (totalCost / safeBudget) * 100 : 0;
+  const remainingEur = safeBudget - totalCost;
+  return {
+    totalCost,
+    budgetEur: safeBudget,
+    usedPct,
+    remainingEur,
   };
 }

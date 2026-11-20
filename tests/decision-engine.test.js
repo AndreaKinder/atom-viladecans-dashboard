@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  getBudgetUsage,
   getCases,
+  getCo2ModulesA,
+  getCo2ModulesB,
+  getCo2PerPerson,
   getCostPerPerson,
   getDaysModulesA,
   getDaysModulesB,
@@ -9,6 +13,7 @@ import {
   getModuleMixForGrid,
   getModuleMixFromRedPct,
   getStockCoverage,
+  getTotalCo2,
   getTotalCost,
   getTotalDays,
   inputLabels,
@@ -62,6 +67,13 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
     assert.equal(KITS.fred.badge, "F");
     assert.equal(KITS.calor.components.length, 4);
     assert.equal(KITS.fred.components.length, 4);
+    assert.deepEqual(KITS.calor.kpis, [
+      { val: "−20 %", txt: "Estalvi de refrigeració" },
+      { val: "25,6 °C · 55 %", txt: "Confort tèrmic i humitat interior" },
+    ]);
+    assert.deepEqual(KITS.fred.kpis, [
+      { val: "0 kWh", txt: "Demanda de calefacció a 22,6 °C" },
+    ]);
 
     assert.equal(getKitForScenario("C01").id, "calor");
     assert.equal(getKitForScenario("C02").id, "calor");
@@ -128,5 +140,38 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
     const { perPerson, perPersonNight } = getCostPerPerson(160, 0, 30);
     assert.equal(perPerson, (40 * 27400) / 160);
     assert.equal(perPersonNight, perPerson / 30);
+  });
+
+  it("getCo2ModulesA, getCo2ModulesB, getTotalCo2 i getCo2PerPerson calculen el CO2 incorporat", () => {
+    assert.equal(getCo2ModulesA(160, 50), 20 * 13.3);
+    assert.equal(getCo2ModulesB(160, 50), 20 * 11.5);
+    assert.equal(getTotalCo2(160, 50), 20 * 13.3 + 20 * 11.5);
+    assert.equal(getTotalCo2(160, 100), 40 * 13.3);
+    assert.equal(getTotalCo2(160, 0), 40 * 11.5);
+
+    const { totalCo2T, perPersonKg } = getCo2PerPerson(160, 50);
+    assert.equal(totalCo2T, 496);
+    assert.equal(perPersonKg, (496 * 1000) / 160);
+
+    const empty = getCo2PerPerson(0, 50);
+    assert.equal(empty.totalCo2T, 0);
+    assert.equal(empty.perPersonKg, 0);
+  });
+
+  it("getBudgetUsage calcula el % de pressupost consumit i el romanent lliure", () => {
+    const usage = getBudgetUsage(160, 50, 1729475);
+    assert.equal(usage.totalCost, 1218600);
+    assert.equal(usage.budgetEur, 1729475);
+    assert.equal(usage.remainingEur, 1729475 - 1218600);
+    assert.equal(usage.usedPct, (1218600 / 1729475) * 100);
+
+    const overBudget = getBudgetUsage(160, 100, 1000000);
+    assert.equal(overBudget.totalCost, 40 * 33530);
+    assert.equal(overBudget.remainingEur, 1000000 - 40 * 33530);
+    assert.ok(overBudget.usedPct > 100);
+
+    const zeroBudget = getBudgetUsage(160, 50, 0);
+    assert.equal(zeroBudget.usedPct, 0);
+    assert.equal(zeroBudget.remainingEur, -1218600);
   });
 });
