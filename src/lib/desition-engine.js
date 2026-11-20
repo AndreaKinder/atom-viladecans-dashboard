@@ -4,35 +4,35 @@ import rawConfigsData from "../data/atom_configuraciones.json" with { type: "jso
 import rawResultsData from "../data/atom_resultados_modelo.json" with { type: "json" };
 import rawClimateData from "../data/atom_clima_horario.json" with { type: "json" };
 
-// Traducció al català dels noms d'escenari del dataset
-const SCENARIO_NAME_CA = {
-  ola_calor_costera: "Onada de calor costanera",
-  ola_calor_interior: "Onada de calor interior",
-  frio_continental: "Fred continental",
-  post_tormenta_humeda: "Post-tempesta humida",
+// English translation of dataset scenario names
+const SCENARIO_NAME_EN = {
+  ola_calor_costera: "Coastal heatwave",
+  ola_calor_interior: "Inland heatwave",
+  frio_continental: "Continental cold",
+  post_tormenta_humeda: "Humid post-storm",
 };
 
-// "post_tormenta_humeda" -> "Post tormenta humeda" (si no hi ha traducció)
+// "post_tormenta_humeda" -> "Post tormenta humeda" (fallback if no translation)
 function formatName(name) {
   const text = String(name).replace(/_/g, " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// Escenaris únics carregats del dataset: { C01: "Onada de calor costanera", ... }
+// Unique scenarios loaded from dataset: { C01: "Coastal heatwave", ... }
 export const snarioLabels = Object.fromEntries(
   [...new Map(rawClimateData.map((r) => [r.escenario_id, r.escenario]))]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([id, nom]) => [id, SCENARIO_NAME_CA[nom] ?? formatName(nom)]),
+    .map(([id, nom]) => [id, SCENARIO_NAME_EN[nom] ?? formatName(nom)]),
 );
 
-// Disponibilitat de xarxa del dataset -> % de mòduls connectables
+// Dataset grid availability -> % of grid-connectable modules
 export const RED_PCT = {
   sin_red: 0,
   red_limitada: 50,
   red_disponible: 100,
 };
 
-// Disponibilitat de xarxa del dataset -> % per defecte de Mòdul A (autosuficient) i Mòdul B (amb xarxa)
+// Dataset grid availability -> default % of Module A (self-sufficient) and Module B (grid-connected)
 export const MODULE_MIX_BY_RED = {
   sin_red: { percentModulesA: 100, percentModulesB: 0 },
   red_limitada: { percentModulesA: 50, percentModulesB: 50 },
@@ -52,51 +52,113 @@ export function getModuleMixFromRedPct(pctConexionRed) {
 }
 
 export const inputLabels = {
-  Clima: "Tipus de clima",
+  Clima: "Climate type",
+  AccesoCamion: "Truck access",
+  Prioridad: "Priority requirement",
 };
 
-// Dos kits de fàbrica, un sol xassís
+export const TRUCK_ACCESS_LABELS = {
+  si: "Standard access (standard truck)",
+  limitado: "Limited access (light vehicle / crane)",
+};
+
+export const PRIORITY_LABELS = {
+  rapidez: "Deployment speed",
+  confort: "Thermal comfort",
+  coste: "Cost optimization",
+  emisiones: "Lowest emissions (CO₂)",
+  autosuficiencia: "Energy self-sufficiency",
+};
+
+const PRIORITY_GUIDANCE = {
+  rapidez:
+    "Speed priority: deploy on-site shelter modules first and prioritize Module B (3.1 days/module vs 3.6 days for Module A).",
+  confort:
+    "Thermal comfort priority: chassis with 24 cm cellulose insulation (U 0.162) combined with the active Climate Kit.",
+  coste:
+    "Cost priority: maximize the % of grid-connected Module B units (27,400 €/module vs 33,530 € for Module A).",
+  emisiones:
+    "Emissions priority: Module B reduces footprint to 11.5 t CO₂/module (compared to 13.3 t CO₂ for Module A with battery and solar).",
+  autosuficiencia:
+    "Self-sufficiency priority: prioritize Module A (14 m² solar panels + 10 kWh battery) for off-grid operation.",
+};
+
+export function getOperationalNotices({
+  accesoCamion = "si",
+  requisitoPrioritario = "confort",
+} = {}) {
+  const isLimited = accesoCamion === "limitado";
+  const truckNotice = isLimited
+    ? {
+        type: "acceso",
+        variant: "danger",
+        title: "Limited logistics access",
+        text: "Heavy trailer cannot access: requires palletized transport of disassembled panels using a light vehicle or local crane.",
+      }
+    : {
+        type: "acceso",
+        variant: "info",
+        title: "Standard logistics access",
+        text: "Direct access with a standard crane truck right to the assembly point.",
+      };
+
+  const priorityLabel =
+    PRIORITY_LABELS[requisitoPrioritario] ?? PRIORITY_LABELS.confort;
+  const priorityText =
+    PRIORITY_GUIDANCE[requisitoPrioritario] ?? PRIORITY_GUIDANCE.confort;
+
+  const priorityNotice = {
+    type: "prioritat",
+    variant: "info",
+    title: `Priority criterion · ${priorityLabel}`,
+    text: priorityText,
+  };
+
+  return [truckNotice, priorityNotice];
+}
+
+// Two factory kits, one single chassis
 export const KITS = {
   calor: {
     id: "calor",
-    badge: "C",
-    nom: "Kit Calor",
-    subtitol: "Costa càlida · interior sec · calor humida",
+    badge: "H",
+    nom: "Heat Kit",
+    subtitol: "Warm coast · dry inland · humid heat",
     escenaris: ["C01", "C02", "C04"],
     kpis: [
       {
-        val: "−20 %",
-        txt: "Estalvi de refrigeració",
+        val: "−20%",
+        txt: "Cooling demand savings",
       },
       {
-        val: "25,6 °C · 55 %",
-        txt: "Confort tèrmic i humitat interior",
+        val: "25.6 °C · 55%",
+        txt: "Indoor thermal comfort and humidity",
       },
     ],
     components: [
-      "Coberta i façana de color clar (absortància 0,2)",
-      "Vidre de control solar",
-      "Persiana exterior automàtica amb sol",
-      "Recuperador entàlpic (75 % calor, 65 % humitat)",
+      "Light-colored roof and facade (absorptance 0.2)",
+      "Solar control glazing",
+      "Automatic exterior blind triggered by sunlight",
+      "Enthalpy recovery unit (75% heat, 65% humidity)",
     ],
   },
   fred: {
     id: "fred",
-    badge: "F",
-    nom: "Kit Fred",
-    subtitol: "Onada de fred",
+    badge: "C",
+    nom: "Cold Kit",
+    subtitol: "Cold wave",
     escenaris: ["C03"],
     kpis: [
       {
         val: "0 kWh",
-        txt: "Demanda de calefacció a 22,6 °C",
+        txt: "Heating demand at 22.6 °C",
       },
     ],
     components: [
-      "Vidre baix emissiu (g 0,50) per captar sol",
-      "Persiana exterior: oberta de dia, tancada de nit",
-      "Recuperador de calor en mode hivern",
-      "Bomba de calor de suport, la mateixa als dos kits",
+      "Low-emissivity glazing (g 0.50) for solar gain",
+      "Exterior blind: open during the day, closed at night",
+      "Heat recovery unit in winter mode",
+      "Backup heat pump, identical across both kits",
     ],
   },
 };
@@ -113,7 +175,7 @@ export function getKitForScenario(escenarioId) {
   return KITS[kitKey];
 }
 
-// Carrega les dades brutes del dataset des dels JSON importats
+// Loads raw dataset from imported JSON files
 export function loadDataset() {
   return {
     cases: rawCasesData,
@@ -123,11 +185,11 @@ export function loadDataset() {
   };
 }
 
-// Els 60 casos d'emergència del dataset, preparats per al selector
+// The 60 emergency cases from the dataset
 export function getCases() {
   return rawCasesData.map((c) => ({
     id: c.caso_id,
-    label: `${c.caso_id} · ${c.personas_afectadas} persones`,
+    label: `${c.caso_id} · ${c.personas_afectadas} people`,
     input: {
       escenarioId: c.escenario_id,
       personasAfectadas: Number(c.personas_afectadas),
@@ -135,6 +197,8 @@ export function getCases() {
       plazoMaximoDias: Number(c.plazo_maximo_montaje_dias),
       presupuestoTotalEur: Number(c.presupuesto_total_eur),
       pctConexionRed: RED_PCT[c.disponibilidad_red] ?? 50,
+      accesoCamion: c.acceso_camion ?? "si",
+      requisitoPrioritario: c.requisito_prioritario ?? "confort",
     },
   }));
 }
@@ -144,18 +208,18 @@ export const PROPORTIONS_FACTORS = {
     people: 4,
     modules: 1,
   },
-  // Valors comuns dels dos mòduls bessons
+  // Common values for both twin modules
   common: {
     areaM2: 22,
     capacity: 4,
     parallelTeams: 10,
     lowEmissivityGlassM2: 3,
-    chassis: "fusta laminada · cel·lulosa 24 cm (U 0,162) · panell de fusta",
+    chassis: "glulam timber · 24 cm cellulose (U 0.162) · wood panel",
   },
   moduleA: {
     id: "A",
-    name: "Autosuficient",
-    description: "14 m² de solar + 10 kWh de bateria",
+    name: "Self-sufficient",
+    description: "14 m² solar + 10 kWh battery",
     solarM2: 14,
     batteryKwh: 10,
     costEur: 33530,
@@ -164,8 +228,8 @@ export const PROPORTIONS_FACTORS = {
   },
   moduleB: {
     id: "B",
-    name: "Amb xarxa",
-    description: "Sense solar ni bateria",
+    name: "Grid-connected",
+    description: "No solar or battery",
     solarM2: 0,
     batteryKwh: 0,
     costEur: 27400,
