@@ -3,9 +3,14 @@ import { describe, it } from "node:test";
 import {
   getCases,
   getKitForScenario,
+  getModuleMixForGrid,
+  getModuleMixFromRedPct,
+  getTotalCost,
   inputLabels,
   KITS,
   loadDataset,
+  MODULE_MIX_BY_RED,
+  PROPORTIONS_FACTORS,
   snarioLabels,
 } from "../src/lib/desition-engine.js";
 
@@ -56,5 +61,41 @@ describe("ATOM Modular desition-engine (base casos i clima)", () => {
     assert.equal(getKitForScenario("C02").id, "calor");
     assert.equal(getKitForScenario("C03").id, "fred");
     assert.equal(getKitForScenario("C04").id, "calor");
+  });
+
+  it("PROPORTIONS_FACTORS inclou els valors comuns i dels mòduls A i B", () => {
+    assert.equal(PROPORTIONS_FACTORS.common.areaM2, 22);
+    assert.equal(PROPORTIONS_FACTORS.common.capacity, 4);
+    assert.equal(PROPORTIONS_FACTORS.moduleA.costEur, 33530);
+    assert.equal(PROPORTIONS_FACTORS.moduleA.assemblyDays, 3.6);
+    assert.equal(PROPORTIONS_FACTORS.moduleA.co2T, 13.3);
+    assert.equal(PROPORTIONS_FACTORS.moduleB.costEur, 27400);
+    assert.equal(PROPORTIONS_FACTORS.moduleB.assemblyDays, 3.1);
+    assert.equal(PROPORTIONS_FACTORS.moduleB.co2T, 11.5);
+  });
+
+  it("getTotalCost calcula el cost total segons persones i % de mòduls A", () => {
+    assert.equal(getTotalCost(160, 100), 40 * 33530);
+    assert.equal(getTotalCost(160, 0), 40 * 27400);
+    assert.equal(getTotalCost(160, 50), 20 * 33530 + 20 * 27400);
+  });
+
+  it("defineix la mescla per defecte de mòduls A i B segons disponibilitat de xarxa", () => {
+    assert.deepEqual(MODULE_MIX_BY_RED.sin_red, {
+      percentModulesA: 100,
+      percentModulesB: 0,
+    });
+    assert.deepEqual(getModuleMixForGrid("red_limitada"), {
+      percentModulesA: 50,
+      percentModulesB: 50,
+    });
+    assert.deepEqual(getModuleMixForGrid("red_disponible"), {
+      percentModulesA: 0,
+      percentModulesB: 100,
+    });
+    assert.deepEqual(getModuleMixFromRedPct(50), {
+      percentModulesA: 50,
+      percentModulesB: 50,
+    });
   });
 });

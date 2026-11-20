@@ -2,9 +2,16 @@
 import "../styles/index.css";
 import {
   getCases,
+  getCostModulesA,
+  getCostModulesB,
   getKitForScenario,
+  getModuleMixFromRedPct,
+  getNumberModuleAByPercent,
+  getNumberModuleBByPercent,
+  getTotalCost,
   inputLabels,
   KITS,
+  PROPORTIONS_FACTORS,
   SCENARIO_KIT,
   snarioLabels,
 } from "../lib/desition-engine.js";
@@ -15,7 +22,33 @@ const SCENARIO_LABELS = snarioLabels;
 const CASES = getCases();
 const defaultCase = CASES.find((c) => c.id === "EM059") ?? CASES[0];
 const initialInput = { ...defaultCase.input };
+const initialPercentA = getModuleMixFromRedPct(
+  initialInput.pctConexionRed,
+).percentModulesA;
 const initialKit = getKitForScenario(initialInput.escenarioId);
+const initialTotalCost = getTotalCost(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialModulesA = getNumberModuleAByPercent(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialModulesB = getNumberModuleBByPercent(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialCostA = getCostModulesA(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+const initialCostB = getCostModulesB(
+  initialInput.personasAfectadas,
+  initialPercentA,
+);
+
+const formatEur = (val) =>
+  `${Math.round(val).toLocaleString("ca-ES")} €`;
 ---
 
 <!doctype html>
@@ -58,9 +91,66 @@ const initialKit = getKitForScenario(initialInput.escenarioId);
               }
             </select>
           </div>
+
+          <div class="field">
+            <label for="personasAfectadas">Persones afectades</label>
+            <input
+              id="personasAfectadas"
+              type="number"
+              min="0"
+              step="1"
+              value={initialInput.personasAfectadas}
+            />
+          </div>
+
+          <div class="field">
+            <label for="percentModulesA">
+              Mòduls autosuficients A (<span id="percentModulesAVal">{initialPercentA}</span>%)
+            </label>
+            <input
+              id="percentModulesA"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={initialPercentA}
+            />
+            <div class="hint">
+              <span>A (autosuficient): <strong id="hintPctA">{initialPercentA}%</strong></span>
+              <span>B (amb xarxa): <strong id="hintPctB">{100 - initialPercentA}%</strong></span>
+            </div>
+          </div>
         </aside>
 
         <section>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="kpi-label">Cost total estimat</div>
+              <div id="totalCostVal" class="kpi-val">
+                {formatEur(initialTotalCost)}
+              </div>
+              <div id="totalCostSub" class="kpi-sub">
+                {initialModulesA + initialModulesB} mòduls totals
+              </div>
+            </div>
+
+            <div class="kpi">
+              <div class="kpi-label">Mòduls A · Autosuficient</div>
+              <div id="costAVal" class="kpi-val">{formatEur(initialCostA)}</div>
+              <div id="modulesASub" class="kpi-sub">
+                {initialModulesA} mòduls ({initialPercentA}%)
+              </div>
+            </div>
+
+            <div class="kpi">
+              <div class="kpi-label">Mòduls B · Amb xarxa</div>
+              <div id="costBVal" class="kpi-val">{formatEur(initialCostB)}</div>
+              <div id="modulesBSub" class="kpi-sub">
+                {initialModulesB} mòduls ({100 - initialPercentA}%)
+              </div>
+            </div>
+          </div>
+
           <div class="card">
             <div class="kit-header">
               <span
@@ -80,8 +170,80 @@ const initialKit = getKitForScenario(initialInput.escenarioId);
       </div>
     </main>
 
-    <script define:vars={{ CASES, KITS, SCENARIO_KIT }}>
+    <script define:vars={{ CASES, KITS, PROPORTIONS_FACTORS, SCENARIO_KIT }}>
       const el = (id) => document.getElementById(id);
+
+      const getPeopleForModule =
+        PROPORTIONS_FACTORS.peopleForModule.modules /
+        PROPORTIONS_FACTORS.peopleForModule.people;
+
+      function getNumberModuleAByPercent(people, percentModulesA) {
+        return (people * getPeopleForModule * percentModulesA) / 100;
+      }
+
+      function getCostModulesA(people, percentModulesA) {
+        return (
+          getNumberModuleAByPercent(people, percentModulesA) *
+          PROPORTIONS_FACTORS.moduleA.costEur
+        );
+      }
+
+      function getNumberModuleBByPercent(people, percentModulesA) {
+        return (people * getPeopleForModule * (100 - percentModulesA)) / 100;
+      }
+
+      function getCostModulesB(people, percentModulesA) {
+        return (
+          getNumberModuleBByPercent(people, percentModulesA) *
+          PROPORTIONS_FACTORS.moduleB.costEur
+        );
+      }
+
+      function getTotalCost(people, percentModulesA) {
+        return (
+          getCostModulesA(people, percentModulesA) +
+          getCostModulesB(people, percentModulesA)
+        );
+      }
+
+      function formatEur(val) {
+        return `${Math.round(val).toLocaleString("ca-ES")} €`;
+      }
+
+      function formatNum(val) {
+        return Number.isInteger(val) ? String(val) : val.toFixed(1);
+      }
+
+      function renderCost() {
+        const people = Math.max(0, Number(el("personasAfectadas").value) || 0);
+        const percentA = Math.min(
+          100,
+          Math.max(0, Number(el("percentModulesA").value) || 0),
+        );
+        const percentB = 100 - percentA;
+
+        el("percentModulesAVal").textContent = String(percentA);
+        el("hintPctA").textContent = `${percentA}%`;
+        el("hintPctB").textContent = `${percentB}%`;
+
+        const modulesA = getNumberModuleAByPercent(people, percentA);
+        const modulesB = getNumberModuleBByPercent(people, percentA);
+        const costA = getCostModulesA(people, percentA);
+        const costB = getCostModulesB(people, percentA);
+        const totalCost = getTotalCost(people, percentA);
+
+        el("totalCostVal").textContent = formatEur(totalCost);
+        el("totalCostSub").textContent =
+          `${formatNum(modulesA + modulesB)} mòduls totals`;
+
+        el("costAVal").textContent = formatEur(costA);
+        el("modulesASub").textContent =
+          `${formatNum(modulesA)} mòduls (${percentA}%)`;
+
+        el("costBVal").textContent = formatEur(costB);
+        el("modulesBSub").textContent =
+          `${formatNum(modulesB)} mòduls (${percentB}%)`;
+      }
 
       function renderKit(escenarioId) {
         const kitKey = SCENARIO_KIT[escenarioId] ?? "calor";
@@ -104,18 +266,24 @@ const initialKit = getKitForScenario(initialInput.escenarioId);
         );
       }
 
-      // En triar un cas, s'actualitza el tipus de clima seleccionat i el kit
+      // En triar un cas, s'actualitzen clima, persones, % i càlculs
       el("casoId").addEventListener("change", () => {
         const caso = CASES.find((c) => c.id === el("casoId").value);
         if (!caso) return;
         el("escenarioId").value = caso.input.escenarioId;
+        el("personasAfectadas").value = caso.input.personasAfectadas;
+        el("percentModulesA").value = 100 - caso.input.pctConexionRed;
         renderKit(caso.input.escenarioId);
+        renderCost();
       });
 
       // En canviar el clima manualment, també s'actualitza el kit
       el("escenarioId").addEventListener("change", () => {
         renderKit(el("escenarioId").value);
       });
+
+      el("personasAfectadas").addEventListener("input", renderCost);
+      el("percentModulesA").addEventListener("input", renderCost);
     </script>
   </body>
 </html>

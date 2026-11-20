@@ -32,6 +32,25 @@ export const RED_PCT = {
   red_disponible: 100,
 };
 
+// Disponibilitat de xarxa del dataset -> % per defecte de Mòdul A (autosuficient) i Mòdul B (amb xarxa)
+export const MODULE_MIX_BY_RED = {
+  sin_red: { percentModulesA: 100, percentModulesB: 0 },
+  red_limitada: { percentModulesA: 50, percentModulesB: 50 },
+  red_disponible: { percentModulesA: 0, percentModulesB: 100 },
+};
+
+export function getModuleMixForGrid(disponibilidadRed) {
+  return MODULE_MIX_BY_RED[disponibilidadRed] ?? MODULE_MIX_BY_RED.red_limitada;
+}
+
+export function getModuleMixFromRedPct(pctConexionRed) {
+  const percentModulesB = Math.min(100, Math.max(0, Number(pctConexionRed) || 0));
+  return {
+    percentModulesA: 100 - percentModulesB,
+    percentModulesB,
+  };
+}
+
 export const inputLabels = {
   Clima: "Tipus de clima",
 };
@@ -101,4 +120,71 @@ export function getCases() {
       pctConexionRed: RED_PCT[c.disponibilidad_red] ?? 50,
     },
   }));
+}
+
+export const PROPORTIONS_FACTORS = {
+  peopleForModule: {
+    people: 4,
+    modules: 1,
+  },
+  // Valors comuns dels dos mòduls bessons
+  common: {
+    areaM2: 22,
+    capacity: 4,
+    lowEmissivityGlassM2: 3,
+    chassis: "fusta laminada · cel·lulosa 24 cm (U 0,162) · panell de fusta",
+  },
+  moduleA: {
+    id: "A",
+    name: "Autosuficient",
+    description: "14 m² de solar + 10 kWh de bateria",
+    solarM2: 14,
+    batteryKwh: 10,
+    costEur: 33530,
+    assemblyDays: 3.6,
+    co2T: 13.3,
+  },
+  moduleB: {
+    id: "B",
+    name: "Amb xarxa",
+    description: "Sense solar ni bateria",
+    solarM2: 0,
+    batteryKwh: 0,
+    costEur: 27400,
+    assemblyDays: 3.1,
+    co2T: 11.5,
+  },
+};
+
+export const getPeopleForModule =
+  PROPORTIONS_FACTORS.peopleForModule.modules /
+  PROPORTIONS_FACTORS.peopleForModule.people;
+
+export function getNumberModuleAByPercent(people, percentModulesA) {
+  return (people * getPeopleForModule * percentModulesA) / 100;
+}
+
+export function getCostModulesA(people, percentModulesA) {
+  return (
+    getNumberModuleAByPercent(people, percentModulesA) *
+    PROPORTIONS_FACTORS.moduleA.costEur
+  );
+}
+
+export function getNumberModuleBByPercent(people, percentModulesA) {
+  return (people * getPeopleForModule * (100 - percentModulesA)) / 100;
+}
+
+export function getCostModulesB(people, percentModulesA) {
+  return (
+    getNumberModuleBByPercent(people, percentModulesA) *
+    PROPORTIONS_FACTORS.moduleB.costEur
+  );
+}
+
+export function getTotalCost(people, percentModulesA) {
+  return (
+    getCostModulesA(people, percentModulesA) +
+    getCostModulesB(people, percentModulesA)
+  );
 }
