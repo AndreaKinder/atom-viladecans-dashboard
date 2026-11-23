@@ -27,7 +27,7 @@ import {
   SCENARIO_KIT,
   snarioLabels,
   TRUCK_ACCESS_LABELS,
-} from "../lib/desition-engine.js";
+} from "../lib/decision-engine.js";
 
 const SCENARIO_LABELS = snarioLabels;
 
@@ -383,13 +383,17 @@ const initialBanner = getBannerState(
             <div class="kpi">
               <div class="kpi-label">Budget used</div>
               <div id="budgetPctVal" class="kpi-val">
-                {formatPct(initialBudgetUsage.usedPct)}
+                {
+                  initialBudgetUsage.usedPct === null
+                    ? "No budget"
+                    : formatPct(initialBudgetUsage.usedPct)
+                }
               </div>
               <div class="progress-track">
                 <div
                   id="budgetProgressFill"
-                  class="progress-fill"
-                  style={`width: ${Math.min(100, Math.max(0, initialBudgetUsage.usedPct))}%`}
+                  class={`progress-fill ${initialBudgetUsage.isOverBudget ? "is-over-budget" : ""}`}
+                  style={`width: ${initialBudgetUsage.usedPct === null ? 100 : Math.min(100, Math.max(0, initialBudgetUsage.usedPct))}%`}
                 ></div>
               </div>
               <div id="budgetRemainingSub" class="kpi-sub">
@@ -754,100 +758,30 @@ const initialBanner = getBannerState(
       </section>
     </main>
 
-    <script
-      define:vars={{
+    <script>
+      import {
+        getBudgetUsage,
+        getCo2ModulesA,
+        getCo2ModulesB,
+        getCo2PerPerson,
+        getCostModulesA,
+        getCostModulesB,
+        getCostPerPerson,
+        getDaysModulesA,
+        getDaysModulesB,
+        getNumberModuleAByPercent,
+        getNumberModuleBByPercent,
+        getStockCoverage,
+        getTotalCo2,
+        getTotalCost,
+        getTotalDays,
         KITS,
         PRIORITY_LABELS,
         PROPORTIONS_FACTORS,
         SCENARIO_KIT,
-      }}
-    >
+      } from "../lib/decision-engine.js";
+
       const el = (id) => document.getElementById(id);
-
-      const getPeopleForModule =
-        PROPORTIONS_FACTORS.peopleForModule.modules /
-        PROPORTIONS_FACTORS.peopleForModule.people;
-
-      function getNumberModuleAByPercent(people, percentModulesA) {
-        return (people * getPeopleForModule * percentModulesA) / 100;
-      }
-
-      function getCostModulesA(people, percentModulesA) {
-        return (
-          getNumberModuleAByPercent(people, percentModulesA) *
-          PROPORTIONS_FACTORS.moduleA.costEur
-        );
-      }
-
-      function getNumberModuleBByPercent(people, percentModulesA) {
-        return (people * getPeopleForModule * (100 - percentModulesA)) / 100;
-      }
-
-      function getCostModulesB(people, percentModulesA) {
-        return (
-          getNumberModuleBByPercent(people, percentModulesA) *
-          PROPORTIONS_FACTORS.moduleB.costEur
-        );
-      }
-
-      function getTotalCost(people, percentModulesA) {
-        return (
-          getCostModulesA(people, percentModulesA) +
-          getCostModulesB(people, percentModulesA)
-        );
-      }
-
-      function getKDaysModules(daysForModule) {
-        return getPeopleForModule * daysForModule;
-      }
-
-      function getDaysModulesA(people, percentModulesA) {
-        return (
-          (people *
-            getKDaysModules(PROPORTIONS_FACTORS.moduleA.assemblyDays) *
-            percentModulesA) /
-          100 /
-          PROPORTIONS_FACTORS.common.parallelTeams
-        );
-      }
-
-      function getDaysModulesB(people, percentModulesA) {
-        return (
-          (people *
-            getKDaysModules(PROPORTIONS_FACTORS.moduleB.assemblyDays) *
-            (100 - percentModulesA)) /
-          100 /
-          PROPORTIONS_FACTORS.common.parallelTeams
-        );
-      }
-
-      function getTotalDays(people, percentModulesA) {
-        return (
-          getDaysModulesA(people, percentModulesA) +
-          getDaysModulesB(people, percentModulesA)
-        );
-      }
-
-      function getCo2ModulesA(people, percentModulesA) {
-        return (
-          getNumberModuleAByPercent(people, percentModulesA) *
-          PROPORTIONS_FACTORS.moduleA.co2T
-        );
-      }
-
-      function getCo2ModulesB(people, percentModulesA) {
-        return (
-          getNumberModuleBByPercent(people, percentModulesA) *
-          PROPORTIONS_FACTORS.moduleB.co2T
-        );
-      }
-
-      function getTotalCo2(people, percentModulesA) {
-        return (
-          getCo2ModulesA(people, percentModulesA) +
-          getCo2ModulesB(people, percentModulesA)
-        );
-      }
 
       function formatEur(val) {
         return `${Math.round(val).toLocaleString("en-US")} €`;
@@ -944,10 +878,7 @@ const initialBanner = getBannerState(
           0,
           Number(el("stockModulos").value) || 0,
         );
-        const stockPeople = Math.min(
-          people,
-          stockModules * PROPORTIONS_FACTORS.common.capacity,
-        );
+        const { stockPeople } = getStockCoverage(people, stockModules);
         const percentA = Math.min(
           100,
           Math.max(0, Number(el("percentModulesA").value) || 0),
@@ -968,12 +899,18 @@ const initialBanner = getBannerState(
         const totalDays = getTotalDays(people, percentA);
         const co2A = getCo2ModulesA(people, percentA);
         const co2B = getCo2ModulesB(people, percentA);
-        const totalCo2 = getTotalCo2(people, percentA);
-        const perPersonCo2Kg = people > 0 ? (totalCo2 * 1000) / people : 0;
-        const perPerson = people > 0 ? totalCost / people : 0;
-        const perPersonNight = perPerson / stayDays;
-        const usedPct = budget > 0 ? (totalCost / budget) * 100 : 0;
-        const remainingEur = budget - totalCost;
+        const { totalCo2T: totalCo2, perPersonKg: perPersonCo2Kg } =
+          getCo2PerPerson(people, percentA);
+        const { perPerson, perPersonNight } = getCostPerPerson(
+          people,
+          percentA,
+          stayDays,
+        );
+        const { usedPct, remainingEur, isOverBudget } = getBudgetUsage(
+          people,
+          percentA,
+          budget,
+        );
 
         renderBanner(
           people,
@@ -989,9 +926,11 @@ const initialBanner = getBannerState(
         el("totalCostSub").textContent =
           `${formatNum(modulesA + modulesB)} total modules`;
 
-        el("budgetPctVal").textContent = formatPct(usedPct);
-        el("budgetProgressFill").style.width =
-          `${Math.min(100, Math.max(0, usedPct))}%`;
+        el("budgetPctVal").textContent =
+          usedPct === null ? "No budget" : formatPct(usedPct);
+        const budgetFill = el("budgetProgressFill");
+        budgetFill.style.width = `${usedPct === null ? 100 : Math.min(100, Math.max(0, usedPct))}%`;
+        budgetFill.classList.toggle("is-over-budget", isOverBudget);
         el("budgetRemainingSub").textContent =
           remainingEur >= 0
             ? `${formatEur(remainingEur)} available of ${formatEur(budget)}`

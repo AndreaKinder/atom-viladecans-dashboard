@@ -6,13 +6,12 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "node ./dist/server/entry.mjs",
-    "test": "node --test tests/decision-engine.test.js"
+    "preview": "astro preview",
+    "test": "node --test tests/decision-engine.test.js || bun test tests/decision-engine.test.js"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.9",
-    "astro": "^7.4.12",
-    "fs": "^0.0.1-security"
+    "astro": "^7.4.12"
   },
   "devDependencies": {
     "wrangler": "^4.165.0"

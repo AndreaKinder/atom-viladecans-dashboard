@@ -1,4 +1,4 @@
-import { loadDataset } from "../../lib/desition-engine.js";
+import { loadDataset } from "../../lib/decision-engine.js";
 
 export const GET = async () => {
   const { cases } = loadDataset();

@@ -25,9 +25,9 @@ import {
   PROPORTIONS_FACTORS,
   snarioLabels,
   TRUCK_ACCESS_LABELS,
-} from "../src/lib/desition-engine.js";
+} from "../src/lib/decision-engine.js";
 
-describe("ATOM Modular desition-engine (cases and climate base)", () => {
+describe("ATOM Modular decision-engine (cases and climate base)", () => {
   it("loads the full dataset from JSON files", () => {
     const ds = loadDataset();
     assert.equal(ds.cases.length, 60);
@@ -176,8 +176,14 @@ describe("ATOM Modular desition-engine (cases and climate base)", () => {
     assert.ok(overBudget.usedPct > 100);
 
     const zeroBudget = getBudgetUsage(160, 50, 0);
-    assert.equal(zeroBudget.usedPct, 0);
+    assert.equal(zeroBudget.usedPct, null);
+    assert.equal(zeroBudget.isOverBudget, true);
     assert.equal(zeroBudget.remainingEur, -1218600);
+
+    const zeroBoth = getBudgetUsage(0, 50, 0);
+    assert.equal(zeroBoth.usedPct, 0);
+    assert.equal(zeroBoth.isOverBudget, false);
+    assert.equal(zeroBoth.remainingEur, 0);
   });
 
   it("getOperationalNotices generates notices for truck access and priority requirement", () => {
