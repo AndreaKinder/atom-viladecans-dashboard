@@ -1,0 +1,955 @@
+---
+import {
+  CONTROL_MODES,
+  BLIND_MODES,
+  SENSOR_SPECS,
+  SERVICE_MODELS,
+  computeFleetSummary,
+  createInitialFleetState,
+  answerFleetQuestion,
+  calculateLicensingQuote,
+} from "../lib/sensor-platform.js";
+
+const initialState = createInitialFleetState();
+const initialSummary = computeFleetSummary(initialState);
+const initialSelected = initialState.modules[1] ?? initialState.modules[0];
+const initialAi = answerFleetQuestion(
+  initialState,
+  "¿Qué módulos superaron los 1.000 ppm de CO₂ durante más tiempo?",
+);
+const initialQuote = calculateLicensingQuote(
+  initialState.modules.length,
+  "annual_service_fee",
+);
+const sites = [...new Set(initialState.modules.map((m) => m.site))];
+---
+
+<section id="panelSensors" class="sp-root" hidden role="tabpanel" aria-labelledby="tabSensors">
+  <!-- Barra superior de flujo y filtro -->
+  <div class="card sp-topbar">
+    <div class="sp-topbar-left">
+      <div class="sp-field-inline">
+        <label for="spSiteFilter">Portafolio / Emplazamiento</label>
+        <select id="spSiteFilter">
+          <option value="all">Todos los emplazamientos ({initialState.modules.length} módulos)</option>
+          {sites.map((site) => <option value={site}>{site}</option>)}
+        </select>
+      </div>
+      <div class="sp-workflow" role="navigation" aria-label="Flujo de trabajo de 4 pasos">
+        <button type="button" class="sp-step sp-step-btn is-done" data-jump="spOverviewGrid">1. Medir</button>
+        <span class="sp-arrow" aria-hidden="true">→</span>
+        <button type="button" class="sp-step sp-step-btn is-done" data-jump="spChartCard">2. Entender</button>
+        <span class="sp-arrow" aria-hidden="true">→</span>
+        <button type="button" class="sp-step sp-step-btn is-active" data-jump="spInspectorCard">3. Mejorar</button>
+        <span class="sp-arrow" aria-hidden="true">→</span>
+        <button type="button" class="sp-step sp-step-btn" data-jump="spAlertsCard">4. Verificar</button>
+      </div>
+    </div>
+    <div class="sp-badges">
+      <span class="sp-pill">{SENSOR_SPECS.deviceName}</span>
+      <span class="sp-pill sp-pill-teal">Alojamiento UE · MQTT / BACnet</span>
+    </div>
+  </div>
+
+  <!-- KPIs de Resumen estilo MoveAir -->
+  <div id="spOverviewGrid" class="sp-overview-grid">
+    <div class="card sp-kpi-card">
+      <div class="sp-kpi-label">Estado IAQS de la Flota</div>
+      <div class="sp-score-row">
+        <span id="spAvgScore" class="sp-big-score">{initialSummary.avgScore}</span>
+        <span id="spOverallGrade" class="sp-grade-badge sp-grade-good">
+          {initialSummary.overallGrade}
+        </span>
+      </div>
+      <div id="spWorstSpace" class="sp-kpi-sub">
+        {
+          initialSummary.worstSpace
+            ? `Peor espacio: ${initialSummary.worstSpace.zone} · penalizado por ${initialSummary.worstSpace.driver}`
+            : "Todos los espacios en rango óptimo"
+        }
+      </div>
+      <div id="spGoodSummary" class="sp-kpi-sub">
+        {initialSummary.counts.good} de {initialSummary.counts.online} en Bueno (A) · {initialSummary.counts.offline} sin datos
+      </div>
+    </div>
+
+    <div class="card sp-kpi-card">
+      <div class="sp-kpi-label">Estado de tus Espacios</div>
+      <div class="sp-breakdown">
+        <div class="sp-bk-item">
+          <span class="sp-dot sp-dot-good" aria-hidden="true"></span>
+          <span>Bueno <small class="sp-range-hint">8–10</small></span>
+          <strong id="spCountGood">{initialSummary.counts.good}</strong>
+        </div>
+        <div class="sp-bk-item">
+          <span class="sp-dot sp-dot-mod" aria-hidden="true"></span>
+          <span>Moderado <small class="sp-range-hint">6–7,9</small></span>
+          <strong id="spCountMod">{initialSummary.counts.moderate}</strong>
+        </div>
+        <div class="sp-bk-item">
+          <span class="sp-dot sp-dot-bad" aria-hidden="true"></span>
+          <span>Deficiente <small class="sp-range-hint">&lt; 6</small></span>
+          <strong id="spCountBad">{initialSummary.counts.unhealthy}</strong>
+        </div>
+        <div class="sp-bk-item">
+          <span class="sp-dot sp-dot-off" aria-hidden="true"></span>
+          <span>Sin conexión</span>
+          <strong id="spCountOff">{initialSummary.counts.offline}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="card sp-kpi-card">
+      <div class="sp-kpi-label">Dispositivos y Telemetría</div>
+      <div class="sp-score-row">
+        <span id="spTotalDevices" class="sp-big-score">{initialSummary.counts.total}</span>
+        <span class="sp-kpi-sub-inline">nodos desplegados</span>
+      </div>
+      <div class="sp-devices-split">
+        <span>En línea: <strong id="spOnlineDevices">{initialSummary.counts.online}</strong></span>
+        <span>Sin conexión: <strong id="spOfflineDevices">{initialSummary.counts.offline}</strong></span>
+      </div>
+    </div>
+
+    <div class="card sp-kpi-card">
+      <div class="sp-kpi-label">Requiere Atención</div>
+      <div class="sp-score-row">
+        <span id="spAlertCount" class="sp-big-score sp-score-warn">
+          {initialSummary.alerts.length}
+        </span>
+        <span class="sp-kpi-sub-inline">alertas activas (meta: 0)</span>
+      </div>
+      <div class="sp-kpi-sub">
+        Selecciona cualquier alerta o módulo para ajustar el Kit Climático en remoto.
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen semanal -->
+  <div class="sp-insight-bar">
+    <span class="sp-insight-tag">Resumen de la Semana</span>
+    <span id="spWeeklyInsight" class="sp-insight-text">
+      {initialSummary.weeklyInsight}
+    </span>
+    <button type="button" id="spInsightMoreBtn" class="sp-insight-link">
+      Ver análisis completo →
+    </button>
+  </div>
+
+  <!-- Gráfica de telemetría 24h -->
+  <div id="spChartCard" class="card sp-chart-card">
+    <div class="sp-chart-head">
+      <div>
+        <div class="section-title" style="margin-bottom: 0.15rem;">
+          Monitorización Continua (24 horas)
+        </div>
+        <div id="spChartSub" class="sp-kpi-sub">
+          Mostrando promedio de flota · Índice IAQS (0–10, Bueno ≥ 8,0)
+        </div>
+      </div>
+      <div class="sp-chart-controls">
+        <div class="sp-scope-toggle" role="group" aria-label="Ámbito de la gráfica">
+          <button type="button" class="sp-metric-btn is-active" data-scope="fleet">Flota</button>
+          <button type="button" class="sp-metric-btn" data-scope="module" id="spScopeModuleBtn">Módulo ({initialSelected.id})</button>
+        </div>
+        <div class="sp-metric-tabs" id="spMetricTabs" role="group" aria-label="Métrica de telemetría">
+          <button type="button" class="sp-metric-btn is-active" data-metric="iaqs">Índice IAQS</button>
+          <button type="button" class="sp-metric-btn" data-metric="co2">CO₂ (ppm)</button>
+          <button type="button" class="sp-metric-btn" data-metric="temp">Temp (°C)</button>
+          <button type="button" class="sp-metric-btn" data-metric="pm25">PM2.5 (µg/m³)</button>
+          <button type="button" class="sp-metric-btn" data-metric="humidity">Humedad (%)</button>
+          <button type="button" class="sp-metric-btn" data-metric="battery">Batería SoC (%)</button>
+        </div>
+      </div>
+    </div>
+    <div class="sp-chart-wrap">
+      <svg id="spChartSvg" viewBox="0 0 800 200" class="sp-chart-svg" aria-label="Gráfica de telemetría de sensores 24 horas">
+      </svg>
+    </div>
+  </div>
+
+  <!-- Grid principal de operaciones -->
+  <div class="sp-ops-grid">
+    <div class="sp-ops-left">
+      <div class="card">
+        <div class="sp-card-head-row">
+          <div class="section-title" style="margin-bottom: 0;">Flota de Módulos Desplegados</div>
+          <span class="sp-kpi-sub">Haz clic en una fila para inspeccionar y gestionar</span>
+        </div>
+        <div class="sp-table-wrap">
+          <table class="sp-table">
+            <thead>
+              <tr>
+                <th>Módulo</th>
+                <th>Emplazamiento / Zona</th>
+                <th>CO₂</th>
+                <th>Temp</th>
+                <th>Energía / SoC</th>
+                <th>IAQS</th>
+                <th>Protocolo</th>
+              </tr>
+            </thead>
+            <tbody id="spFleetBody">
+              {
+                initialState.modules.map((m) => (
+                  <tr
+                    class={`sp-row ${m.id === initialSelected.id ? "is-selected" : ""}`}
+                    data-module-id={m.id}
+                    tabindex="0"
+                    aria-label={`Inspeccionar módulo ${m.id} (${m.zone})`}
+                  >
+                    <td>
+                      <strong>{m.id}</strong>
+                      <div class="sp-cell-sub">{m.archetype}</div>
+                    </td>
+                    <td>
+                      <div>{m.zone}</div>
+                      <div class="sp-cell-sub">{m.site}</div>
+                    </td>
+                    <td class="sp-num">{m.status === "offline" ? "—" : `${m.sensors.co2Ppm} ppm`}</td>
+                    <td class="sp-num">{m.status === "offline" ? "—" : `${m.sensors.indoorTempC} °C`}</td>
+                    <td class="sp-num">
+                      {m.sensors.batterySocPct !== null
+                        ? `${m.sensors.batterySocPct}% SoC`
+                        : "Red"}
+                    </td>
+                    <td class="sp-num">
+                      <span class={`sp-badge-band sp-band-${m.iaqs.band}`}>
+                        {m.status === "offline" ? `Sin conexión · hace ${m.lastSeenMinAgo} min` : `${m.iaqs.score} · ${m.iaqs.grade.split(" ")[0]}`}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="sp-cell-sub">{m.protocol}</span>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="spAlertsCard" class="card">
+        <div class="sp-card-head-row">
+          <div class="section-title" style="margin-bottom: 0;">Alertas y Avisos Tempranos</div>
+          <span class="sp-kpi-sub">Por umbral · Accionables</span>
+        </div>
+        <div id="spAlertsList" class="sp-alerts-list">
+        </div>
+      </div>
+    </div>
+
+    <!-- Derecha: Inspector de módulo y control remoto -->
+    <aside id="spInspectorCard" class="card sp-inspector">
+      <div class="sp-card-head-row">
+        <div>
+          <div class="eyebrow" style="margin-bottom: 0.1rem;">Control Remoto del Módulo</div>
+          <div id="spSelTitle" class="section-title" style="margin-bottom: 0;">
+            {initialSelected.id} · {initialSelected.zone}
+          </div>
+        </div>
+        <button id="spKioskBtn" type="button" class="sp-btn-outline">
+          Vista QR / Kiosco
+        </button>
+      </div>
+      <div id="spSelMeta" class="sp-kpi-sub" style="margin-bottom: 0.8rem;">
+        {initialSelected.site} · {initialSelected.archetype} · {initialSelected.kit} · {initialSelected.occupants} ocupantes
+      </div>
+
+      <div id="spSensorGrid" class="sp-sensor-grid">
+      </div>
+
+      <div class="sp-control-box">
+        <div class="sp-control-title">Gestionar desde la Plataforma (Kit Climático y Persianas)</div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="spHvacSelect">Modo Climatización / Ventilación</label>
+            <select id="spHvacSelect">
+              {
+                Object.values(CONTROL_MODES).map((mode) => (
+                  <option
+                    value={mode.id}
+                    selected={mode.id === initialSelected.controls.hvacMode}
+                  >
+                    {mode.label}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="spBlindSelect">Persiana Exterior Domotizada</label>
+            <select id="spBlindSelect">
+              {
+                Object.values(BLIND_MODES).map((b) => (
+                  <option
+                    value={b.id}
+                    selected={b.id === initialSelected.controls.blindMode}
+                  >
+                    {b.label}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+        </div>
+        <div id="spControlHint" class="sp-kpi-sub" style="margin-top: 0.45rem;">
+          {CONTROL_MODES[initialSelected.controls.hvacMode]?.description}
+        </div>
+        <div id="spVerifyBox" class="sp-verify-box" hidden></div>
+      </div>
+
+      <details class="sp-hw-details">
+        <summary>Ficha hardware · {SENSOR_SPECS.deviceName}</summary>
+        <div class="sp-hw-body">
+          <div><strong>Calidad del aire:</strong> {SENSOR_SPECS.airQuality.join(" · ")}</div>
+          <div><strong>Confort:</strong> {SENSOR_SPECS.comfort.join(" · ")}</div>
+          <div><strong>Opcionales por proyecto:</strong> {SENSOR_SPECS.optionalSensors.join(" · ")}</div>
+          <div><strong>Conectividad / BMS:</strong> {SENSOR_SPECS.connectivity} · {SENSOR_SPECS.bms}</div>
+          <div><strong>Alimentación / Montaje:</strong> {SENSOR_SPECS.power} · {SENSOR_SPECS.mounting}</div>
+          <div><strong>Estándares:</strong> {SENSOR_SPECS.standards.join(" · ")}</div>
+        </div>
+      </details>
+
+      <div class="sp-log-box">
+        <div class="sp-control-title">Acciones Remotas Recientes</div>
+        <ul id="spActionLog" class="sp-log-list">
+          {
+            initialState.actionLog.map((item) => (
+              <li>
+                <span class="sp-log-time">{item.time}</span>
+                <strong>{item.moduleId}</strong> — {item.action}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- Vista Pública Kiosco / QR -->
+      <div id="spKioskCard" class="sp-kiosk-card" hidden>
+        <div class="sp-kiosk-head">
+          <div>
+            <div class="eyebrow">Vista Pública Vestíbulo / Kiosco</div>
+            <strong id="spKioskTitle">{initialSelected.zone}</strong>
+            <div id="spKioskSub" class="sp-kpi-sub">{initialSelected.site}</div>
+          </div>
+          <svg width="56" height="56" viewBox="0 0 28 28" aria-label="Código QR del módulo" class="sp-qr-svg">
+            <rect width="28" height="28" fill="#ffffff" rx="3" />
+            <path d="M2 2h8v8H2zM4 4v4h4V4zM18 2h8v8h-8zM20 4v4h4V4zM2 18h8v8H2zM4 20v4h4v-4zM12 4h2v4h-2zM12 12h4v4h-4zM18 12h4v2h-4zM24 12h2v6h-2zM12 20h6v2h-6zM20 20h4v4h-4z" fill="#0f172a" />
+          </svg>
+        </div>
+        <div id="spKioskMetrics" class="sp-kiosk-metrics">
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Fila inferior: Asistente IA + Modelo Comercial -->
+  <div class="sp-section-divider">
+    <span>Análisis Inteligente y Modelo Comercial</span>
+  </div>
+  <div class="sp-bottom-grid">
+    <div id="spAiCard" class="card">
+      <div class="sp-card-head-row">
+        <div>
+          <div class="eyebrow">Asistente IA</div>
+          <div class="section-title" style="margin-bottom: 0;">Pregunta a la Flota</div>
+        </div>
+        <span class="sp-pill">Datos en Tiempo Real</span>
+      </div>
+      <p class="sp-kpi-sub" style="margin: 0.35rem 0 0.75rem;">
+        Pregunta en lenguaje natural. Las respuestas se calculan directamente con los datos de los sensores desplegados.
+      </p>
+      <div class="sp-prompt-chips">
+        <button type="button" class="sp-chip" data-q="¿Qué módulos superaron los 1.000 ppm de CO₂ durante más tiempo?">
+          ¿Más tiempo &gt; 1.000 ppm CO₂?
+        </button>
+        <button type="button" class="sp-chip" data-q="¿Cómo se compara esta semana con la semana pasada?">
+          ¿Esta semana vs semana pasada?
+        </button>
+        <button type="button" class="sp-chip" data-q="¿Cómo está el estado de batería en los módulos aislados?">
+          ¿Batería módulos aislados?
+        </button>
+        <button type="button" class="sp-chip" data-q="Compara el confort interior frente al clima exterior">
+          ¿Confort interior vs exterior?
+        </button>
+        <button type="button" class="sp-chip" data-q="¿Qué requiere atención ahora mismo?">
+          ¿Qué requiere atención?
+        </button>
+      </div>
+      <form id="spAiForm" class="sp-ai-form">
+        <input
+          id="spAiInput"
+          type="text"
+          placeholder="Pregunta sobre CO₂, comparativa semanal, batería o alertas..."
+          value="¿Qué módulos superaron los 1.000 ppm de CO₂ durante más tiempo?"
+        />
+        <button type="submit" class="sp-btn-primary">Consultar</button>
+      </form>
+      <div class="sp-ai-answer">
+        <div id="spAiTitle" class="sp-ai-title">{initialAi.title}</div>
+        <pre id="spAiBody" class="sp-ai-body">{initialAi.answer}</pre>
+        <div class="sp-ai-footer">
+          <div id="spAiMeta" class="sp-kpi-sub">
+            Datos utilizados: {initialAi.dataUsed.join(", ")}
+          </div>
+          <div class="sp-ai-feedback" role="group" aria-label="Valorar respuesta">
+            <button type="button" class="sp-fb-btn" data-fb="up" aria-label="Respuesta útil">👍 Útil</button>
+            <button type="button" class="sp-fb-btn" data-fb="down" aria-label="Respuesta mejorable">👎</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sp-card-head-row">
+        <div>
+          <div class="eyebrow">Modelo Comercial y Despliegue</div>
+          <div class="section-title" style="margin-bottom: 0;">Cuota Anual vs Licencia de Plataforma</div>
+        </div>
+        <div class="field" style="margin-bottom: 0; width: 110px;">
+          <label for="spLicModules" style="font-size: 0.7rem;">Módulos</label>
+          <input id="spLicModules" type="number" min="1" max="500" value={initialState.modules.length} />
+        </div>
+      </div>
+
+      <div class="sp-plan-tabs" role="group" aria-label="Modelo comercial">
+        {
+          Object.values(SERVICE_MODELS).map((plan) => (
+            <button
+              type="button"
+              class={`sp-plan-btn ${plan.id === "annual_service_fee" ? "is-active" : ""}`}
+              data-plan={plan.id}
+            >
+              <strong>{plan.name}</strong>
+              <span>{plan.badge}</span>
+            </button>
+          ))
+        }
+      </div>
+
+      <div id="spPlanSummary" class="sp-kpi-sub" style="margin-bottom: 0.75rem;">
+        {SERVICE_MODELS.annual_service_fee.summary}
+      </div>
+
+      <div class="sp-quote-grid">
+        <div class="sp-quote-box">
+          <div class="sp-kpi-label">Licencia Inicial</div>
+          <div id="spQuoteUpfront" class="sp-quote-val">{initialQuote.upfrontEur.toLocaleString("es-ES")} €</div>
+        </div>
+        <div class="sp-quote-box">
+          <div class="sp-kpi-label">Cuota Anual</div>
+          <div id="spQuoteAnnual" class="sp-quote-val">{initialQuote.annualEur.toLocaleString("es-ES")} €/año</div>
+        </div>
+        <div class="sp-quote-box">
+          <div class="sp-kpi-label">TCO a 3 Años</div>
+          <div id="spQuote3Yr" class="sp-quote-val">{initialQuote.threeYearTotalEur.toLocaleString("es-ES")} €</div>
+        </div>
+      </div>
+
+      <ul id="spPlanIncludes" class="kit-list" style="margin-top: 0.75rem;">
+        {SERVICE_MODELS.annual_service_fee.includes.map((item) => <li>{item}</li>)}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+  import {
+    CONTROL_MODES,
+    SERVICE_MODELS,
+    acknowledgeAlert,
+    answerFleetQuestion,
+    applyModuleControl,
+    calculateLicensingQuote,
+    computeFleetSummary,
+    createInitialFleetState,
+    get24hSeries,
+    resolveAlert,
+  } from "../lib/sensor-platform.js";
+
+  let fleetState = createInitialFleetState();
+  let siteFilter = "all";
+  let selectedModuleId = fleetState.modules[1]?.id ?? fleetState.modules[0].id;
+  let activeMetric = "iaqs";
+  let chartScope = "fleet";
+  let activePlan = "annual_service_fee";
+
+  const $ = (id) => document.getElementById(id);
+
+  function getFilteredModules() {
+    return siteFilter === "all"
+      ? fleetState.modules
+      : fleetState.modules.filter((m) => m.site === siteFilter);
+  }
+
+  const METRIC_TARGETS = {
+    iaqs: { val: 8, label: "Meta ≥ 8,0" },
+    co2: { val: 1000, label: "Límite 1.000 ppm" },
+    temp: { val: 26, label: "Confort ≤ 26 °C" },
+    pm25: { val: 25, label: "Límite 25 µg/m³" },
+    humidity: { val: 60, label: "Máx. 60% HR" },
+    battery: { val: 25, label: "Reserva 25%" },
+  };
+
+  function renderChart() {
+    const svg = $("spChartSvg");
+    if (!svg) return;
+    const scopeModuleId = chartScope === "module" ? selectedModuleId : "all";
+    const series = get24hSeries(fleetState, {
+      siteFilter,
+      moduleId: scopeModuleId,
+      metric: activeMetric,
+    });
+
+    const W = 800;
+    const H = 200;
+    const padL = 44;
+    const padR = 16;
+    const padT = 16;
+    const padB = 26;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+
+    const vals = series.map((p) => p.value);
+    const outVals = series.map((p) => p.outdoorValue).filter((v) => v !== null);
+    const target = METRIC_TARGETS[activeMetric];
+    const allVals = [...vals, ...outVals, ...(target ? [target.val] : [])];
+
+    const minV =
+      activeMetric === "iaqs"
+        ? 0
+        : activeMetric === "battery"
+          ? 0
+          : Math.floor(Math.min(...allVals) * 0.9);
+    const maxV =
+      activeMetric === "iaqs"
+        ? 10
+        : activeMetric === "battery"
+          ? 100
+          : Math.ceil(Math.max(...allVals) * 1.1);
+    const span = Math.max(1, maxV - minV);
+
+    const xAt = (i) => padL + (i / (series.length - 1)) * innerW;
+    const yAt = (v) => padT + innerH - ((v - minV) / span) * innerH;
+
+    const points = series.map((p, i) => `${xAt(i).toFixed(1)},${yAt(p.value).toFixed(1)}`).join(" ");
+    const areaPoints = `${padL},${padT + innerH} ${points} ${padL + innerW},${padT + innerH}`;
+
+    let outdoorPath = "";
+    if (outVals.length === series.length) {
+      const oPts = series
+        .map((p, i) => `${xAt(i).toFixed(1)},${yAt(p.outdoorValue).toFixed(1)}`)
+        .join(" ");
+      outdoorPath = `<polyline fill="none" stroke="#b45309" stroke-width="2" stroke-dasharray="5,4" points="${oPts}" />`;
+    }
+
+    let targetLine = "";
+    if (activeMetric === "iaqs") {
+      const yGood = yAt(8).toFixed(1);
+      const yMod = yAt(6).toFixed(1);
+      const goodBandH = Math.max(0, Number(yGood) - padT).toFixed(1);
+      targetLine = `
+        <rect x="${padL}" y="${padT}" width="${innerW}" height="${goodBandH}" fill="rgba(22, 163, 74, 0.06)" />
+        <line x1="${padL}" y1="${yGood}" x2="${W - padR}" y2="${yGood}" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.7" />
+        <text x="${W - padR - 4}" y="${Number(yGood) - 4}" text-anchor="end" font-size="10" font-weight="600" fill="#15803d">Bueno · 8</text>
+        <line x1="${padL}" y1="${yMod}" x2="${W - padR}" y2="${yMod}" stroke="#d97706" stroke-width="1.1" stroke-dasharray="4,4" opacity="0.65" />
+        <text x="${W - padR - 4}" y="${Number(yMod) - 4}" text-anchor="end" font-size="10" font-weight="600" fill="#b45309">Moderado · 6</text>
+      `;
+    } else if (target && target.val >= minV && target.val <= maxV) {
+      const ty = yAt(target.val).toFixed(1);
+      targetLine = `
+        <line x1="${padL}" y1="${ty}" x2="${W - padR}" y2="${ty}" stroke="#0f766e" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.65" />
+        <text x="${W - padR - 4}" y="${Number(ty) - 4}" text-anchor="end" font-size="10" font-weight="600" fill="#0f766e">${target.label}</text>
+      `;
+    }
+
+    const yTicks = [minV, Math.round((minV + maxV) / 2), maxV];
+    const gridLines = yTicks
+      .map((tick) => {
+        const y = yAt(tick).toFixed(1);
+        return `
+          <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="3,3" />
+          <text x="${padL - 8}" y="${Number(y) + 4}" text-anchor="end" font-size="11" fill="#64748b">${tick}</text>
+        `;
+      })
+      .join("");
+
+    const xLabels = [0, 6, 12, 18, 23]
+      .map((idx) => {
+        const x = xAt(idx).toFixed(1);
+        return `<text x="${x}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#64748b">${series[idx].hour}</text>`;
+      })
+      .join("");
+
+    const dots = series
+      .map((p, i) => {
+        const cx = xAt(i).toFixed(1);
+        const cy = yAt(p.value).toFixed(1);
+        const outTxt = p.outdoorValue !== null ? ` · Ext: ${p.outdoorValue}` : "";
+        return `<circle cx="${cx}" cy="${cy}" r="3.5" fill="#0f766e" stroke="#ffffff" stroke-width="1.5"><title>${p.hour} — ${p.value}${outTxt}</title></circle>`;
+      })
+      .join("");
+
+    svg.innerHTML = `
+      ${gridLines}
+      <polygon fill="rgba(15, 118, 110, 0.12)" points="${areaPoints}" />
+      <polyline fill="none" stroke="#0f766e" stroke-width="2.5" points="${points}" />
+      ${outdoorPath}
+      ${targetLine}
+      ${dots}
+      ${xLabels}
+    `;
+
+    const labels = {
+      iaqs: "Índice IAQS (0–10, Bueno ≥ 8,0)",
+      co2: "Concentración de CO₂ (ppm, objetivo ≤ 1.000 ppm)",
+      temp: "Temp. Interior (línea continua) vs Temp. Exterior (discontinua ámbar) en °C",
+      pm25: "Partículas PM2.5 (µg/m³, objetivo ≤ 25 µg/m³)",
+      humidity: "Humedad Relativa (% HR, objetivo 40–60%)",
+      battery: "Estado de Carga Batería en Módulos A aislados (%)",
+    };
+    const scopeLabel =
+      chartScope === "module"
+        ? `módulo ${selectedModuleId}`
+        : siteFilter === "all"
+          ? "promedio de flota"
+          : siteFilter;
+    $("spChartSub").textContent =
+      `Mostrando ${scopeLabel} · ${labels[activeMetric] ?? ""}`;
+    const scopeBtn = $("spScopeModuleBtn");
+    if (scopeBtn) {
+      scopeBtn.textContent = `Módulo (${selectedModuleId})`;
+    }
+  }
+
+  function renderOverview() {
+    const summary = computeFleetSummary(fleetState, siteFilter);
+    $("spAvgScore").textContent = String(summary.avgScore);
+    const gradeEl = $("spOverallGrade");
+    gradeEl.textContent = summary.overallGrade;
+    gradeEl.className = `sp-grade-badge ${
+      summary.avgScore >= 8
+        ? "sp-grade-good"
+        : summary.avgScore >= 6
+          ? "sp-grade-mod"
+          : "sp-grade-bad"
+    }`;
+
+    $("spCountGood").textContent = String(summary.counts.good);
+    $("spCountMod").textContent = String(summary.counts.moderate);
+    $("spCountBad").textContent = String(summary.counts.unhealthy);
+    $("spCountOff").textContent = String(summary.counts.offline);
+
+    const worstEl = $("spWorstSpace");
+    if (worstEl) {
+      worstEl.textContent = summary.worstSpace
+        ? `Peor espacio: ${summary.worstSpace.zone} · penalizado por ${summary.worstSpace.driver}`
+        : "Todos los espacios en rango óptimo";
+    }
+    const goodSumEl = $("spGoodSummary");
+    if (goodSumEl) {
+      goodSumEl.textContent = `${summary.counts.good} de ${summary.counts.online} en Bueno (A) · ${summary.counts.offline} sin datos`;
+    }
+
+    $("spTotalDevices").textContent = String(summary.counts.total);
+    $("spOnlineDevices").textContent = String(summary.counts.online);
+    $("spOfflineDevices").textContent = String(summary.counts.offline);
+    $("spAlertCount").textContent = String(summary.alerts.length);
+    $("spWeeklyInsight").textContent = summary.weeklyInsight;
+
+    const alertsEl = $("spAlertsList");
+    if (summary.alerts.length === 0) {
+      alertsEl.innerHTML = `<div class="aviso aviso-info">Todos los módulos activos operan dentro de los umbrales WELL v2 y RESET Air.</div>`;
+    } else {
+      alertsEl.innerHTML = summary.alerts
+        .map(
+          (a) => `
+          <div class="sp-alert-item ${a.severity === "critical" ? "is-critical" : "is-warning"} ${a.acknowledged ? "is-acked" : ""}">
+            <div>
+              <div class="sp-alert-title">${a.title}</div>
+              <div class="sp-cell-sub">${a.detail}</div>
+            </div>
+            <div class="sp-alert-actions">
+              <button type="button" class="sp-btn-xs" data-select-mod="${a.moduleId}">Inspeccionar</button>
+              ${
+                a.acknowledged
+                  ? `<span class="sp-acked-tag">Confirmada</span>`
+                  : `<button type="button" class="sp-btn-xs" data-ack="${a.id}">Confirmar</button>`
+              }
+              <button type="button" class="sp-btn-xs" data-resolve="${a.id}">Resolver</button>
+            </div>
+          </div>
+        `,
+        )
+        .join("");
+    }
+  }
+
+  function renderFleetTable() {
+    const modules = getFilteredModules();
+    if (!modules.some((m) => m.id === selectedModuleId) && modules.length > 0) {
+      selectedModuleId = modules[0].id;
+    }
+
+    $("spFleetBody").innerHTML = modules
+      .map(
+        (m) => `
+        <tr class="sp-row ${m.id === selectedModuleId ? "is-selected" : ""}" data-module-id="${m.id}" tabindex="0" aria-label="Inspeccionar módulo ${m.id} (${m.zone})">
+          <td>
+            <strong>${m.id}</strong>
+            <div class="sp-cell-sub">${m.archetype}</div>
+          </td>
+          <td>
+            <div>${m.zone}</div>
+            <div class="sp-cell-sub">${m.site}</div>
+          </td>
+          <td class="sp-num">${m.status === "offline" ? "—" : `${m.sensors.co2Ppm} ppm`}</td>
+          <td class="sp-num">${m.status === "offline" ? "—" : `${m.sensors.indoorTempC} °C`}</td>
+          <td class="sp-num">${m.sensors.batterySocPct !== null ? `${m.sensors.batterySocPct}% SoC` : "Red"}</td>
+          <td class="sp-num">
+            <span class="sp-badge-band sp-band-${m.iaqs.band}">
+              ${m.status === "offline" ? `Sin conexión · hace ${m.lastSeenMinAgo} min` : `${m.iaqs.score} · ${m.iaqs.grade.split(" ")[0]}`}
+            </span>
+          </td>
+          <td><span class="sp-cell-sub">${m.protocol}</span></td>
+        </tr>
+      `,
+      )
+      .join("");
+  }
+
+  function renderInspector() {
+    const mod = fleetState.modules.find((m) => m.id === selectedModuleId) ?? fleetState.modules[0];
+    if (!mod) return;
+
+    $("spSelTitle").textContent = `${mod.id} · ${mod.zone}`;
+    $("spSelMeta").textContent = `${mod.site} · ${mod.archetype} · ${mod.kit} · ${mod.occupants} ocupantes`;
+
+    const s = mod.sensors;
+    const isOff = mod.status === "offline";
+    const cards = [
+      { label: "CO₂", val: isOff ? "Sin conexión" : `${s.co2Ppm} ppm`, warn: s.co2Ppm > 1000 },
+      { label: "PM2.5 / PM10", val: isOff ? "—" : `${s.pm25Ug} / ${s.pm10Ug} µg/m³`, warn: s.pm25Ug > 25 },
+      { label: "TVOC", val: isOff ? "—" : `${s.tvocPpb} ppb`, warn: s.tvocPpb > 300 },
+      { label: "Temp. Interior", val: isOff ? "—" : `${s.indoorTempC} °C`, warn: s.indoorTempC > 27 },
+      { label: "Humedad", val: isOff ? "—" : `${s.humidityPct}%`, warn: s.humidityPct > 65 },
+      { label: "Ruido / Luz / Presión", val: isOff ? "—" : `${s.noiseDba} dBA · ${s.lightLux} lx · ${s.pressureHpa} hPa`, warn: false },
+      {
+        label: s.batterySocPct !== null ? "SoC Batería" : "Carga de Red",
+        val: s.batterySocPct !== null ? `${s.batterySocPct}% (${s.solarKw} kW FV)` : `${s.powerKw} kW`,
+        warn: s.batterySocPct !== null && s.batterySocPct < 25,
+      },
+      { label: "Índice IAQS", val: isOff ? "Sin conexión" : `${mod.iaqs.score} · ${mod.iaqs.grade}`, warn: mod.iaqs.band !== "good" },
+    ];
+
+    $("spSensorGrid").innerHTML = cards
+      .map(
+        (c) => `
+        <div class="sp-sensor-tile ${c.warn ? "is-warn" : ""}">
+          <div class="sp-sensor-lbl">${c.label}</div>
+          <div class="sp-sensor-val">${c.val}</div>
+        </div>
+      `,
+      )
+      .join("");
+
+    $("spHvacSelect").value = mod.controls.hvacMode;
+    $("spBlindSelect").value = mod.controls.blindMode;
+    $("spHvacSelect").disabled = isOff;
+    $("spBlindSelect").disabled = isOff;
+    $("spControlHint").textContent = isOff
+      ? "El nodo sensor está sin conexión. Revisa la pasarela local MQTT/Modbus."
+      : (CONTROL_MODES[mod.controls.hvacMode]?.description ?? "");
+
+    const verifyBox = $("spVerifyBox");
+    if (verifyBox) {
+      if (mod.lastVerification && !isOff) {
+        const { before, after } = mod.lastVerification;
+        verifyBox.hidden = false;
+        verifyBox.innerHTML = `<strong>Verificación (Antes → Después):</strong> CO₂ ${before.co2Ppm} → ${after.co2Ppm} ppm · Temp ${before.indoorTempC} → ${after.indoorTempC} °C · IAQS ${before.score} → ${after.score}`;
+      } else {
+        verifyBox.hidden = true;
+      }
+    }
+
+    $("spActionLog").innerHTML = fleetState.actionLog
+      .map(
+        (item) =>
+          `<li><span class="sp-log-time">${item.time}</span><strong>${item.moduleId}</strong> — ${item.action}</li>`,
+      )
+      .join("");
+
+    $("spKioskTitle").textContent = `${mod.zone} (${mod.id})`;
+    $("spKioskSub").textContent = `${mod.site} · ${mod.iaqs.grade}`;
+    $("spKioskMetrics").innerHTML = isOff
+      ? `<span class="sp-pill">Telemetría sin conexión</span>`
+      : `
+        <span class="sp-pill sp-pill-teal">IAQS ${mod.iaqs.score}/10</span>
+        <span class="sp-pill">CO₂ ${s.co2Ppm} ppm</span>
+        <span class="sp-pill">Temp ${s.indoorTempC} °C</span>
+        <span class="sp-pill">HR ${s.humidityPct}%</span>
+      `;
+  }
+
+  function renderQuote() {
+    const count = Math.max(1, Number($("spLicModules").value) || 8);
+    const quote = calculateLicensingQuote(count, activePlan);
+    const plan = SERVICE_MODELS[activePlan];
+    $("spPlanSummary").textContent = plan.summary;
+    $("spQuoteUpfront").textContent = `${quote.upfrontEur.toLocaleString("es-ES")} €`;
+    $("spQuoteAnnual").textContent = `${quote.annualEur.toLocaleString("es-ES")} €/año`;
+    $("spQuote3Yr").textContent = `${quote.threeYearTotalEur.toLocaleString("es-ES")} €`;
+    $("spPlanIncludes").innerHTML = plan.includes.map((i) => `<li>${i}</li>`).join("");
+  }
+
+  function renderAll() {
+    renderOverview();
+    renderFleetTable();
+    renderChart();
+    renderInspector();
+  }
+
+  $("spSiteFilter")?.addEventListener("change", (e) => {
+    siteFilter = e.target.value;
+    renderAll();
+  });
+
+  $("spMetricTabs")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-metric]");
+    if (!btn) return;
+    activeMetric = btn.dataset.metric;
+    document.querySelectorAll("#spMetricTabs .sp-metric-btn").forEach((b) => {
+      b.classList.toggle("is-active", b === btn);
+    });
+    renderChart();
+  });
+
+  document.querySelector(".sp-scope-toggle")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-scope]");
+    if (!btn) return;
+    chartScope = btn.dataset.scope;
+    document.querySelectorAll(".sp-scope-toggle .sp-metric-btn").forEach((b) => {
+      b.classList.toggle("is-active", b === btn);
+    });
+    renderChart();
+  });
+
+  document.querySelectorAll(".sp-step-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".sp-step-btn").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      const target = document.getElementById(btn.dataset.jump);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  function selectModuleFromRow(row) {
+    if (!row) return;
+    selectedModuleId = row.dataset.moduleId;
+    renderFleetTable();
+    renderInspector();
+    renderChart();
+  }
+
+  $("spFleetBody")?.addEventListener("click", (e) => {
+    selectModuleFromRow(e.target.closest("tr[data-module-id]"));
+  });
+
+  $("spFleetBody")?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest("tr[data-module-id]");
+    if (!row) return;
+    e.preventDefault();
+    selectModuleFromRow(row);
+  });
+
+  $("spAlertsList")?.addEventListener("click", (e) => {
+    const sel = e.target.closest("[data-select-mod]");
+    if (sel) {
+      selectedModuleId = sel.dataset.selectMod;
+      renderFleetTable();
+      renderChart();
+      renderInspector();
+      return;
+    }
+    const ack = e.target.closest("[data-ack]");
+    if (ack) {
+      fleetState = acknowledgeAlert(fleetState, ack.dataset.ack);
+      renderOverview();
+      return;
+    }
+    const res = e.target.closest("[data-resolve]");
+    if (res) {
+      fleetState = resolveAlert(fleetState, res.dataset.resolve);
+      renderOverview();
+    }
+  });
+
+  $("spHvacSelect")?.addEventListener("change", (e) => {
+    fleetState = applyModuleControl(fleetState, selectedModuleId, {
+      hvacMode: e.target.value,
+    });
+    renderAll();
+  });
+
+  $("spBlindSelect")?.addEventListener("change", (e) => {
+    fleetState = applyModuleControl(fleetState, selectedModuleId, {
+      blindMode: e.target.value,
+    });
+    renderAll();
+  });
+
+  $("spKioskBtn")?.addEventListener("click", () => {
+    const kiosk = $("spKioskCard");
+    kiosk.hidden = !kiosk.hidden;
+  });
+
+  function runAiQuery(q) {
+    const res = answerFleetQuestion(fleetState, q);
+    $("spAiTitle").textContent = res.title;
+    $("spAiBody").textContent = res.answer;
+    $("spAiMeta").textContent = `Datos utilizados: ${res.dataUsed.join(", ")}`;
+    document.querySelectorAll(".sp-fb-btn").forEach((b) => b.classList.remove("is-active"));
+  }
+
+  $("spAiForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    runAiQuery($("spAiInput").value);
+  });
+
+  document.querySelectorAll(".sp-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      $("spAiInput").value = chip.dataset.q;
+      runAiQuery(chip.dataset.q);
+    });
+  });
+
+  document.querySelectorAll(".sp-plan-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activePlan = btn.dataset.plan;
+      document.querySelectorAll(".sp-plan-btn").forEach((b) => {
+        b.classList.toggle("is-active", b === btn);
+      });
+      renderQuote();
+    });
+  });
+
+  $("spInsightMoreBtn")?.addEventListener("click", () => {
+    const q = "¿Cómo se compara esta semana con la semana pasada?";
+    $("spAiInput").value = q;
+    runAiQuery(q);
+    $("spAiCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  document.querySelectorAll(".sp-fb-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".sp-fb-btn").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+    });
+  });
+
+  $("spLicModules")?.addEventListener("input", renderQuote);
+
+  renderAll();
+</script>

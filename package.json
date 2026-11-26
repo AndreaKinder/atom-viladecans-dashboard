@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "node --test tests/decision-engine.test.js || bun test tests/decision-engine.test.js"
+    "test": "node --test tests/decision-engine.test.js tests/sensor-platform.test.js || bun test tests/decision-engine.test.js tests/sensor-platform.test.js"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.9",
