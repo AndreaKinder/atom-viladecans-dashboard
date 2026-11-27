@@ -1,8 +1,6 @@
 # ATOM Modular · Emergency Deployment Planner
 
 > **A Decision-Making Dashboard** para la asignación y planificación óptima de viviendas modulares industrializadas de emergencia ante crisis climáticas.  
-> Proyecto desarrollado para la **Hackathon Viladecans 2030** (*Solucions innovadores per a ciutats intermèdies* — marco **Missió Clima Viladecans 2030: Zero emissions**, vertical *Construcció sostenible*, reto **CON-E1**).
-
 ---
 
 ## 🎯 Contexto y Reto
